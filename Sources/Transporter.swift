@@ -254,7 +254,7 @@ extension NetServiceTransport {
                 case .tls:
                     break
                 @unknown default:
-                    fatalError()
+                    break
                 }
             case .setup:
                 break
