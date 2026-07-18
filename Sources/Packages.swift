@@ -7,6 +7,11 @@
 //
 
 import Foundation
+#if os(iOS) || targetEnvironment(macCatalyst) || os(tvOS) || os(visionOS)
+import UIKit
+#elseif os(watchOS)
+import WatchKit
+#endif
 
 public final class TrafficPackage: Codable, CustomDebugStringConvertible {
 
