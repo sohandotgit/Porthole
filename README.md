@@ -2,6 +2,16 @@
 
 In-app network inspector for iOS/macOS. Captures HTTP/HTTPS and WebSocket traffic and lets you view it with a built-in SwiftUI viewer — no proxy, no certificates, no desktop app.
 
+Fork of [Proxyman/Atlantis](https://github.com/ProxymanApp/atlantis). Original Atlantis streamed captured traffic over Bonjour to the Proxyman desktop app; Porthole removes that dependency and views traffic in-app instead.
+
+### Changes from Atlantis
+- Removed the Bonjour transport layer and remote Proxyman integration
+- Added a built-in SwiftUI viewer: traffic list + detail view
+- Added body search and traffic filtering
+- Added export as cURL command and HAR file
+- Added clear/pause and a bounded in-memory store (`Atlantis.trafficStore`)
+- Replaced the `AtlantisSwiftUIApp` example with `PortholeExample`, wired to the new viewer
+
 ## Features
 - Automatic HTTP/HTTPS capture, no proxy or certificate trust needed
 - WebSocket capture (`URLSessionWebSocketTask`)
