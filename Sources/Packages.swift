@@ -468,10 +468,10 @@ public struct WebsocketMessagePackage: Codable, Serializable {
     }
 
     private let id: String
-    private let createdAt: TimeInterval
-    private let messageType: MessageType
-    private let stringValue: String?
-    private let dataValue: Data?
+    public let createdAt: TimeInterval
+    public let messageType: MessageType
+    public let stringValue: String?
+    public let dataValue: Data?
 
     init(id: String, message: Message, messageType: MessageType) {
         self.messageType = messageType

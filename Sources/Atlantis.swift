@@ -21,6 +21,9 @@ public final class Atlantis: NSObject {
 
     static let shared = Atlantis()
 
+    /// Shared in-app traffic store, observable by SwiftUI viewers.
+    public static let trafficStore = AtlantisTrafficStore()
+
     // MARK: - Components
 
     private weak var delegate: AtlantisDelegate?
@@ -484,15 +487,16 @@ extension Atlantis {
         }
     }
 
-    func startSendingMessage(package: TrafficPackage) {
-        // Notify the delegate
-        if let delegate = delegate {
-
-            // Should be called from the Main thread since the Traffic is running on different threads
-            DispatchQueue.main.async {
-                delegate.atlantisDidHaveNewPackage(package)
-            }
+    /// Feed the in-app store + delegate, unconditionally, on the main thread.
+    private func notifyStoreAndDelegate(_ package: TrafficPackage) {
+        DispatchQueue.main.async {
+            Atlantis.trafficStore.upsert(package)
+            self.delegate?.atlantisDidHaveNewPackage(package)
         }
+    }
+
+    func startSendingMessage(package: TrafficPackage) {
+        notifyStoreAndDelegate(package)
 
         // Send to Proxyman app
         guard isEnabledTransportLayer else {
@@ -520,6 +524,7 @@ extension Atlantis {
         attemptSendingAllWaitingWSPackages(id: id)
 
         // Send the current one
+        notifyStoreAndDelegate(package)
         let message = Message.buildWebSocketMessage(id: configuration.id, item: package)
         transporter.send(package: message)
     }
@@ -534,6 +539,7 @@ extension Atlantis {
 
         // Send all waiting WS Message
         waitingList.forEach { item in
+            notifyStoreAndDelegate(item)
             let message = Message.buildWebSocketMessage(id: configuration.id, item: item)
             transporter.send(package: message)
         }
