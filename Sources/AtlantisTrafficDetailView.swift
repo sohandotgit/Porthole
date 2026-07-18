@@ -226,6 +226,33 @@ private struct AtlantisHeadersSectionView: View {
 }
 
 @available(iOS 15.0, macOS 12.0, *)
+private struct AtlantisHeadersDetailView: View {
+    let title: String
+    let headers: [Header]
+
+    var body: some View {
+        List {
+            AtlantisHeadersSectionView(title: title, headers: headers)
+        }
+        .navigationTitle(title)
+    }
+}
+
+@available(iOS 15.0, macOS 12.0, *)
+private struct AtlantisBodyDetailView: View {
+    let title: String
+    let data: Data
+    let contentType: String?
+
+    var body: some View {
+        List {
+            AtlantisBodySectionView(title: title, data: data, contentType: contentType)
+        }
+        .navigationTitle(title)
+    }
+}
+
+@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisMessageDetailView: View {
     let message: WebsocketMessagePackage
 
@@ -373,16 +400,6 @@ public struct AtlantisTrafficDetailView: View {
                     Text(durationText)
                 }
                 HStack {
-                    Text("Request size")
-                    Spacer()
-                    Text(atlantisHumanBytes(package.request.body?.count ?? 0))
-                }
-                HStack {
-                    Text("Response size")
-                    Spacer()
-                    Text(atlantisHumanBytes(package.responseBodyData.count))
-                }
-                HStack {
                     Text("Content-Type")
                     Spacer()
                     Text(responseContentType ?? "—")
@@ -392,17 +409,51 @@ public struct AtlantisTrafficDetailView: View {
                     Spacer()
                     Text(atlantisDateTimeFormatter.string(from: Date(timeIntervalSince1970: package.startAt)))
                 }
+                NavigationLink {
+                    AtlantisHeadersDetailView(title: "Request Headers", headers: package.request.headers)
+                } label: {
+                    HStack {
+                        Text("Request Headers")
+                        Spacer()
+                        Text("\(package.request.headers.count)")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                NavigationLink {
+                    AtlantisHeadersDetailView(title: "Response Headers", headers: package.response?.headers ?? [])
+                } label: {
+                    HStack {
+                        Text("Response Headers")
+                        Spacer()
+                        Text("\(package.response?.headers.count ?? 0)")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                NavigationLink {
+                    AtlantisBodyDetailView(title: "Request Body",
+                                           data: package.request.body ?? Data(),
+                                           contentType: atlantisContentType(from: package.request.headers))
+                } label: {
+                    HStack {
+                        Text("Request Body")
+                        Spacer()
+                        Text(atlantisHumanBytes(package.request.body?.count ?? 0))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                NavigationLink {
+                    AtlantisBodyDetailView(title: "Response Body",
+                                           data: package.responseBodyData,
+                                           contentType: responseContentType)
+                } label: {
+                    HStack {
+                        Text("Response Body")
+                        Spacer()
+                        Text(atlantisHumanBytes(package.responseBodyData.count))
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
-
-            AtlantisHeadersSectionView(title: "Request Headers", headers: package.request.headers)
-            AtlantisHeadersSectionView(title: "Response Headers", headers: package.response?.headers ?? [])
-
-            AtlantisBodySectionView(title: "Request Body",
-                                    data: package.request.body ?? Data(),
-                                    contentType: atlantisContentType(from: package.request.headers))
-            AtlantisBodySectionView(title: "Response Body",
-                                    data: package.responseBodyData,
-                                    contentType: responseContentType)
 
             if isWebSocketOrSSE {
                 Section("Messages") {
