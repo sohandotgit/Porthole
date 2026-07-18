@@ -3,69 +3,19 @@ import ObjectiveC
 import XCTest
 @testable import Atlantis
 
-private struct TestMessageEnvelope: Codable {
-    let id: String?
-    let messageType: Message.MessageType
-    let content: Data?
-    let buildVersion: String?
-}
-
-private struct TestStreamPackageContent: Codable {
-    let id: String
-    let request: TestRequestContent
-    let websocketMessagePackage: TestStreamMessagePackage?
-}
-
-private struct TestRequestContent: Codable {
-    let url: String
-    let method: String
-}
-
-private struct TestStreamMessagePackage: Codable {
-    let id: String
-    let messageType: WebsocketMessagePackage.MessageType
-    let stringValue: String?
-    let dataValue: Data?
-}
-
 private struct TestServerSentEventCapture {
     let trafficPackages: [TrafficPackage]
-    let streamMessages: [TestStreamMessagePackage]
+    let streamMessages: [WebsocketMessagePackage]
 }
 
-private final class TestTransporter: Transporter {
-    private let queue = DispatchQueue(label: "com.proxyman.atlantis.tests.transporter")
-    private var messages: [TestMessageEnvelope] = []
-    var onMessageEnvelope: ((TestMessageEnvelope) -> Void)?
-    var onTrafficPackage: ((TrafficPackage) -> Void)?
+private final class TestDelegate: AtlantisDelegate {
+    private let lock = NSLock()
+    private(set) var packages: [TrafficPackage] = []   // delivery order, may repeat id
+    var onPackage: ((TrafficPackage) -> Void)?
 
-    func start(_ config: Configuration) {
-        // No-op: avoid Bonjour/network in tests.
-    }
-
-    func stop() {
-        // No-op
-    }
-
-    func send(package: Serializable) {
-        guard let data = package.toData(),
-              let envelope = try? JSONDecoder().decode(TestMessageEnvelope.self, from: data) else {
-            return
-        }
-        queue.async {
-            self.messages.append(envelope)
-        }
-        onMessageEnvelope?(envelope)
-        guard envelope.messageType == .traffic,
-              let content = envelope.content,
-              let traffic = try? JSONDecoder().decode(TrafficPackage.self, from: content) else {
-            return
-        }
-        onTrafficPackage?(traffic)
-    }
-
-    func drainMessages() -> [TestMessageEnvelope] {
-        queue.sync { messages }
+    func atlantisDidHaveNewPackage(_ package: TrafficPackage) {
+        lock.lock(); packages.append(package); lock.unlock()
+        onPackage?(package)
     }
 }
 
@@ -196,20 +146,19 @@ private func parsePort(from text: String) -> Int? {
 
 final class URLSessionSwizzleTests: XCTestCase {
     private let baseURL = URL(string: "https://httpbin.proxyman.app")!
-    private var transporter: TestTransporter!
+    private var delegate: TestDelegate!
 
     override func setUp() {
         super.setUp()
-        transporter = TestTransporter()
+        delegate = TestDelegate()
         Atlantis.setIsRunningOniOSPlayground(true)
-        Atlantis.setEnableTransportLayer(true)
-        Atlantis.setTransporterForTesting(transporter)
+        Atlantis.setDelegate(delegate)
         Atlantis.start()
     }
 
     override func tearDown() {
         Atlantis.stop()
-        transporter = nil
+        delegate = nil
         super.tearDown()
     }
 
@@ -544,38 +493,22 @@ final class URLSessionSwizzleTests: XCTestCase {
                                                action: () -> Void) -> TestServerSentEventCapture {
         let expectation = expectation(description: "Wait for SSE stream messages")
         let lock = NSLock()
-        var trafficPackages: [TrafficPackage] = []
-        var streamMessages: [TestStreamMessagePackage] = []
+        var latest: [String: TrafficPackage] = [:]
         var didFulfill = false
 
-        transporter.onMessageEnvelope = { envelope in
+        delegate.onPackage = { package in
+            guard self.isPackageForPath(package, path) else { return }
             lock.lock()
             defer { lock.unlock() }
 
-            switch envelope.messageType {
-            case .traffic:
-                guard let content = envelope.content,
-                      let package = try? JSONDecoder().decode(TrafficPackage.self, from: content),
-                      self.isPackageForPath(package, path) else {
-                    return
-                }
-                trafficPackages.append(package)
-            case .websocket:
-                guard let content = envelope.content,
-                      let package = try? JSONDecoder().decode(TestStreamPackageContent.self, from: content),
-                      package.request.url.contains(path),
-                      let streamMessage = package.websocketMessagePackage else {
-                    return
-                }
-                streamMessages.append(streamMessage)
-            case .connection:
-                return
-            }
+            latest[package.id] = package
 
-            let hasExpectedMessages = expectedMessageFragments.allSatisfy { fragment in
-                streamMessages.contains { $0.stringValue?.contains(fragment) == true }
+            let hasExpectedMessages = !latest.isEmpty && expectedMessageFragments.allSatisfy { fragment in
+                latest.values.contains { pkg in
+                    pkg.websocketMessages.contains { $0.stringValue?.contains(fragment) == true }
+                }
             }
-            if !didFulfill, !trafficPackages.isEmpty, hasExpectedMessages {
+            if !didFulfill, hasExpectedMessages {
                 didFulfill = true
                 expectation.fulfill()
             }
@@ -583,12 +516,12 @@ final class URLSessionSwizzleTests: XCTestCase {
 
         action()
         wait(for: [expectation], timeout: timeout)
-        transporter.onMessageEnvelope = nil
+        delegate.onPackage = nil
 
         lock.lock()
         defer { lock.unlock() }
-        return TestServerSentEventCapture(trafficPackages: trafficPackages,
-                                          streamMessages: streamMessages)
+        return TestServerSentEventCapture(trafficPackages: Array(latest.values),
+                                          streamMessages: latest.values.flatMap { $0.websocketMessages })
     }
 
     private func waitForTrafficPackageIfAvailable(matching predicate: @escaping (TrafficPackage) -> Bool,
@@ -599,7 +532,7 @@ final class URLSessionSwizzleTests: XCTestCase {
         var capturedPackage: TrafficPackage?
         var didFulfill = false
 
-        transporter.onTrafficPackage = { package in
+        delegate.onPackage = { package in
             guard predicate(package) else { return }
             lock.lock()
             defer { lock.unlock() }
@@ -611,6 +544,7 @@ final class URLSessionSwizzleTests: XCTestCase {
 
         action()
         wait(for: [expectation], timeout: timeout)
+        delegate.onPackage = nil
         return capturedPackage
     }
 
@@ -618,13 +552,14 @@ final class URLSessionSwizzleTests: XCTestCase {
                                        action: () -> Void) -> TrafficPackage {
         let expectation = expectation(description: "Wait for traffic package")
         var capturedPackage: TrafficPackage?
-        transporter.onTrafficPackage = { package in
+        delegate.onPackage = { package in
             guard predicate(package) else { return }
             capturedPackage = package
             expectation.fulfill()
         }
         action()
         wait(for: [expectation], timeout: 30)
+        delegate.onPackage = nil
         return capturedPackage!
     }
 

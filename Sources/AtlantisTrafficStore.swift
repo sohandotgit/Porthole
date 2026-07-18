@@ -37,6 +37,16 @@ public final class AtlantisTrafficStore: ObservableObject {
         indexById.removeAll()
     }
 
+    /// Remove a package by identity (e.g. swipe-to-delete). Reindexes remaining rows.
+    public func remove(_ package: TrafficPackage) {
+        guard let index = indexById[package.id] else { return }
+        packages.remove(at: index)
+        indexById.removeAll(keepingCapacity: true)
+        for (i, package) in packages.enumerated() {
+            indexById[package.id] = i
+        }
+    }
+
     private func trimIfNeeded() {
         guard packages.count > capacity else { return }
         packages.removeFirst(packages.count - capacity)
