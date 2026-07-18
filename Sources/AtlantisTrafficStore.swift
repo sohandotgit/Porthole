@@ -14,7 +14,7 @@ public final class AtlantisTrafficStore: ObservableObject {
     /// Max rows retained; oldest packages are evicted once exceeded.
     public var capacity: Int = 500
 
-    public var isPaused: Bool = false
+    @Published public var isPaused: Bool = false
 
     private var indexById: [String: Int] = [:]
 
