@@ -13,20 +13,17 @@ struct Configuration {
     let projectName: String
     let deviceName: String
     let id: String
-    let hostName: String?
 
-    static func `default`(hostName: String? = nil) -> Configuration {
+    static func `default`() -> Configuration {
         let project = Project.current
         let deviceName = Device.current
         return Configuration(projectName: project.name,
-                             deviceName: deviceName.name,
-                             hostName: hostName)
+                             deviceName: deviceName.name)
     }
 
-    private init(projectName: String, deviceName: String, hostName: String?) {
+    private init(projectName: String, deviceName: String) {
         self.projectName = projectName
         self.deviceName = deviceName
-        self.hostName = hostName
         self.id = "\(Project.current.bundleIdentifier)-\(Device.current.model)" // Use this ID to distinguish the message
     }
 }

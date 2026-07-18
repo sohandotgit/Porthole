@@ -8,45 +8,7 @@
 
 import Foundation
 
-#if os(OSX)
-import AppKit
-typealias Image = NSImage
-#elseif os(iOS) || targetEnvironment(macCatalyst)  || os(tvOS) || os(visionOS)
-import UIKit
-typealias Image = UIImage
-#elseif os(watchOS)
-import UIKit
-import WatchKit
-typealias Image = UIImage
-#endif
-
-struct ConnectionPackage: Codable, Serializable {
-
-    let device: Device
-    let project: Project
-    let icon: Data?
-
-    init(config: Configuration) {
-        var currentDevice = Device.current
-        currentDevice.name = config.deviceName
-        var currentProject = Project.current
-        currentProject.name = config.projectName
-        self.device = currentDevice
-        self.project = currentProject
-        self.icon = Image.appIcon?.getPNGData()
-    }
-
-    func toData() -> Data? {
-        do {
-            return try JSONEncoder().encode(self)
-        } catch let error {
-            print(error)
-        }
-        return nil
-    }
-}
-
-public final class TrafficPackage: Codable, CustomDebugStringConvertible, Serializable {
+public final class TrafficPackage: Codable, CustomDebugStringConvertible {
 
     public enum PackageType: String, Codable {
         case http
@@ -66,22 +28,11 @@ public final class TrafficPackage: Codable, CustomDebugStringConvertible, Serial
     public private(set) var lastData: Data?
     public private(set) var packageType: PackageType
     private(set) var websocketMessagePackage: WebsocketMessagePackage?
+    /// Append-only, ordered record of every WS/SSE message on this row (source of
+    /// truth for the viewer/tests; the singular field above only holds the last one).
+    public private(set) var websocketMessages: [WebsocketMessagePackage] = []
 
     // MARK: - Variables
-
-    private var isLargeReponseBody: Bool {
-        if responseBodyData.count > NetServiceTransport.MaximumSizePackage {
-            return true
-        }
-        return false
-    }
-
-    private var isLargeRequestBody: Bool {
-        if let requestBody = request.body, requestBody.count > NetServiceTransport.MaximumSizePackage {
-            return true
-        }
-        return false
-    }
 
     var isServerSentEventStream: Bool {
         return response?.isServerSentEventStream == true
@@ -180,66 +131,18 @@ public final class TrafficPackage: Codable, CustomDebugStringConvertible, Serial
         responseBodyData.append(data)
     }
 
-    func toData() -> Data? {
-        let request: Request
-        if isLargeRequestBody {
-            request = Request(url: self.request.url, method: self.request.method, headers: self.request.headers, body: nil)
-        } else {
-            request = self.request
-        }
-
-        // For some reason, JSONEncoder could not allocate enough RAM to encode a large body
-        // It crashes the app if the body might be > 100Mb
-        // We decide to skip the body, but send the request/response
-        // https://github.com/ProxymanApp/atlantis/issues/57
-        let responseBodyData: Data
-        if isLargeReponseBody {
-            responseBodyData = "<Skip Large Body>".data(using: String.Encoding.utf8)!
-        } else {
-            responseBodyData = self.responseBodyData
-        }
-
-        // Encode to JSON
-        do {
-            let snapshot = TrafficPackageSnapshot(id: id,
-                                                  startAt: startAt,
-                                                  request: request,
-                                                  response: response,
-                                                  error: error,
-                                                  responseBodyData: responseBodyData,
-                                                  endAt: endAt,
-                                                  packageType: packageType,
-                                                  websocketMessagePackage: websocketMessagePackage)
-            return try JSONEncoder().encode(snapshot)
-        } catch let error {
-            print(error)
-        }
-        return nil
-    }
-
     public var debugDescription: String {
         return "Package: id=\(id), request=\(String(describing: request)), response=\(String(describing: response))"
     }
 
     func setWebsocketMessagePackage(package: WebsocketMessagePackage) {
         self.websocketMessagePackage = package
+        self.websocketMessages.append(package)
     }
 
     func markAsWebsocketPackage() {
         self.packageType = .websocket
     }
-}
-
-private struct TrafficPackageSnapshot: Encodable {
-    let id: String
-    let startAt: TimeInterval
-    let request: Request
-    let response: Response?
-    let error: CustomError?
-    let responseBodyData: Data
-    let endAt: TimeInterval?
-    let packageType: TrafficPackage.PackageType
-    let websocketMessagePackage: WebsocketMessagePackage?
 }
 
 struct Device: Codable {
@@ -442,7 +345,7 @@ public struct CustomError: Codable {
     }
 }
 
-public struct WebsocketMessagePackage: Codable, Serializable {
+public struct WebsocketMessagePackage: Codable {
 
     public enum MessageType: String, Codable {
         case pingPong
@@ -493,90 +396,5 @@ public struct WebsocketMessagePackage: Codable, Serializable {
         self.createdAt = Date().timeIntervalSince1970
         self.stringValue = "\(closeCode)" // Temporarily store the closeCode by String
         self.dataValue = reason
-    }
-
-    func toData() -> Data? {
-        // Encode to JSON
-        do {
-            return try JSONEncoder().encode(self)
-        } catch let error {
-            print(error)
-        }
-        return nil
-    }
-}
-
-extension Image {
-
-    static var appIcon: Image? {
-        #if os(OSX)
-        if Thread.isMainThread {
-            return NSApplication.shared.applicationIconImage
-        } else {
-            return DispatchQueue.main.sync {
-                // Must be called on the Main Thread
-                // Otherwise, we get a UI Background Checker warnings
-                return NSApplication.shared.applicationIconImage
-            }
-        }
-
-        #elseif targetEnvironment(macCatalyst)
-        guard let iconName = Bundle.main.infoDictionary?["CFBundleIconFile"] as? String else {
-            return nil
-        }
-        if let _ = Bundle.main.url(forResource: iconName, withExtension: "icns") {
-            return nil
-        }
-        return Image(named: iconName)
-        #elseif os(iOS) || os(tvOS) || os(visionOS)
-        // `UIImage(named:)` is documented thread-safe, but during the
-        // first UIWindow's automatic tintColor resolution it races with
-        // UIKit's AccentColor asset lookup. The race leaves the window's
-        // inherited tint as the system blue default, baking blue into
-        // every descendant of the initial render. Marshal to the main
-        // thread (mirrors the OSX branch above).
-        if Thread.isMainThread {
-            return _resolveAppIconOnMain()
-        } else {
-            return DispatchQueue.main.sync { _resolveAppIconOnMain() }
-        }
-        #elseif os(watchOS)
-        guard let iconsDictionary = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
-              let primaryIconsDictionary = iconsDictionary["CFBundlePrimaryIcon"] as? [String: Any],
-              let iconFiles = primaryIconsDictionary["CFBundleIconFiles"] as? [String],
-              let lastIcon = iconFiles.last else { return nil }
-        return Image(named: lastIcon)
-        #endif
-    }
-
-    #if os(iOS) || os(tvOS) || os(visionOS)
-    private static func _resolveAppIconOnMain() -> Image? {
-        if let iconsDictionary = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
-           let primaryIconsDictionary = iconsDictionary["CFBundlePrimaryIcon"] as? [String: Any] {
-            if let iconFiles = primaryIconsDictionary["CFBundleIconFiles"] as? [String],
-               let lastIcon = iconFiles.last,
-               let image = Image(named: lastIcon) {
-                return image
-            }
-            if let iconName = primaryIconsDictionary["CFBundleIconName"] as? String,
-               let image = Image(named: "\(iconName)60x60") {
-                return image
-            }
-        }
-        return nil
-    }
-    #endif
-
-    func getPNGData() -> Data? {
-        #if os(OSX)
-        guard let cgImage = self.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
-        let newRep = NSBitmapImageRep(cgImage: cgImage)
-        // Resize, we don't need 1024px size
-        newRep.size = CGSize(width: 64, height: 64)
-        return newRep.representation(using: .png, properties: [:])
-        #elseif os(iOS) || targetEnvironment(macCatalyst) || os(tvOS) || os(visionOS) || os(watchOS)
-        // It's already by 64px
-        return self.pngData()
-        #endif
     }
 }

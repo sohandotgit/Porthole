@@ -27,7 +27,6 @@ public final class Atlantis: NSObject {
     // MARK: - Components
 
     private weak var delegate: AtlantisDelegate?
-    private var transporter: Transporter
     private var injector: Injector = NetworkInjector()
     private(set) var configuration: Configuration = Configuration.default()
     private var packages: [String: TrafficPackage] = [:]
@@ -40,32 +39,9 @@ public final class Atlantis: NSObject {
 
     // MARK: - Variables
 
-    /// Check whether or not Bonjour Service is available in current devices
-    private static var isServiceAvailable: Bool = {
-
-        #if os(iOS)
-
-        // on iOS Swift Playgroud, no need to add configs to Info.plist
-        if Atlantis.shared.isRunningOniOSPlayground {
-            return true
-        }
-
-        // Require extra config for iOS 14
-        if #available(iOS 14, *) {
-            return Bundle.main.hasBonjourServices && Bundle.main.hasLocalNetworkUsageDescription
-        }
-        #endif
-        // Below iOS 14, Bonjour service is always available
-        return true
-    }()
-
     /// Determine whether or not the Atlantis is active
     /// It must be wrapped into an atomic for safe-threads
     private static var isEnabled = Atomic<Bool>(false)
-
-    /// Determine whether or not the transport layer (e.g. Bonjour service) is enabled
-    /// If it's enabled, it will send the traffic to Proxyman macOS app
-    private var isEnabledTransportLayer = true
 
     /// Determine if Atlantis is running on Swift Playground
     /// If it's enabled, Atlantis will bypass some safety checks
@@ -76,7 +52,6 @@ public final class Atlantis: NSObject {
     // MARK: - Init
 
     private override init() {
-        transporter = NetServiceTransport()
         super.init()
         injector.delegate = self
     }
@@ -89,53 +64,23 @@ public final class Atlantis: NSObject {
     public static let buildVersion: String = "1.36.0"
 
     /// Start Swizzle all network functions and monitoring the traffic
-    /// It also starts looking Bonjour network from Proxyman app.
-    /// If hostName is nil, Atlantis will find all Proxyman apps in the network. It's useful if we have only one machine for personal usage.
-    /// If hostName is not nil, Atlantis will try to connect to particular mac machine. It's useful if you have multiple Proxyman.
-    /// - Parameter hostName: Host name of Mac machine. You can find your current Host Name in Proxyman -> Certificate -> Install on iOS -> By Atlantis -> Show Start Atlantis
     /// - Parameter shouldCaptureWebSocketTraffic: Determine if Atlantis should perform the Method Swizzling on WS/WSS connection. Default is true.
-    @objc public class func start(hostName: String? = nil, shouldCaptureWebSocketTraffic: Bool = true) {
+    @objc public class func start(shouldCaptureWebSocketTraffic: Bool = true) {
         // save config
-        let configuration = Configuration.default(hostName: hostName)
+        let configuration = Configuration.default()
 
-        //
-        if Atlantis.shared.isEnabledTransportLayer {
-
-            // Check if Bonjour and required info's key are available
-            Atlantis.shared.safetyCheck()
-
-            // don't start the service if it's unavailable
-            guard Atlantis.isServiceAvailable else {
-                return
-            }
-        }
-
-        // 
         guard !isEnabled.value else { return }
         isEnabled.mutate { $0 = true }
 
         // Enable the injector
         Atlantis.shared.configuration = configuration
         Atlantis.shared.injector.injectAllNetworkClasses(config: NetworkConfiguration(shouldCaptureWebSocketTraffic: shouldCaptureWebSocketTraffic))
-
-        // Start transport layer if need
-        if Atlantis.shared.isEnabledTransportLayer {
-            Atlantis.shared.transporter.start(configuration)
-        }
     }
 
     /// Stop monitoring
     @objc public class func stop() {
         guard isEnabled.value else { return }
         isEnabled.mutate { $0 = false }
-        if Atlantis.shared.isEnabledTransportLayer {
-            Atlantis.shared.transporter.stop()
-        }
-    }
-
-    /// Enable Transport Layer (e.g. Bonjour)
-    public class func setEnableTransportLayer(_ isEnabled: Bool) {
-        Atlantis.shared.isEnabledTransportLayer = isEnabled
     }
 
     /// Enable Swift Playground mode
@@ -154,79 +99,10 @@ public final class Atlantis: NSObject {
     }
 }
 
-#if DEBUG
-extension Atlantis {
-
-    /// Testing-only hook to inject a custom Transporter.
-    static func setTransporterForTesting(_ transporter: Transporter) {
-        retainedTestTransporters.append(Atlantis.shared.transporter)
-        Atlantis.shared.transporter = transporter
-    }
-}
-
-private var retainedTestTransporters: [Transporter] = []
-#endif
-
 // MARK: - Private
 
 extension Atlantis {
 
-    private func safetyCheck() {
-        if Atlantis.isServiceAvailable {
-            print("---------------------------------------------------------------------------------")
-            print("---------- 🧊 Atlantis is running (version \(Atlantis.buildVersion))")
-            print("---------- Github: https://github.com/ProxymanApp/atlantis")
-            print("---------------------------------------------------------------------------------")
-        }
-
-        // Don't need to check configs on Info.plist
-        if Atlantis.shared.isRunningOniOSPlayground {
-            print("---------- Running on Swift Playground Mode")
-            print("If you get the SSL Error, please follow this code: https://gist.github.com/NghiaTranUIT/275c8da5068d506869a21bd16da27094")
-            return
-        }
-
-        // For iOS
-        #if os(iOS)
-
-        // Check required config for Local Network in the main app's info.plist
-        // Ref: https://developer.apple.com/news/?id=0oi77447
-        // Only for iOS 14
-        if #available(iOS 14, *) {
-            var instruction: [String] = []
-            if !Bundle.main.hasLocalNetworkUsageDescription {
-                let config = """
-                <key>NSLocalNetworkUsageDescription</key>
-                <string>Atlantis would use Bonjour Service to discover Proxyman app from your local network.</string>
-                """
-                instruction.append(config)
-            }
-            if !Bundle.main.hasBonjourServices {
-                let config = """
-                <key>NSBonjourServices</key>
-                <array>
-                    <string>_Proxyman._tcp</string>
-                </array>
-                """
-                instruction.append(config)
-            }
-            if !instruction.isEmpty {
-                let message = """
-                ---------------------------------------------------------------------------------
-                --------- ⚠️ [Atlantis] MISSING REQUIRED CONFIG from Info.plist for iOS 14+ --------
-                ---------------------------------------------------------------------------------
-                Read more at: https://docs.proxyman.io/atlantis/atlantis-for-ios
-                Please add the following config to your MainApp's Info.plist
-
-                \(instruction.joined(separator: "\n"))
-
-                """
-                print(message)
-            }
-        }
-        #endif
-    }
-    
     private func checkShouldIgnoreByURLProtocol(protocols: [AnyClass], on request: URLRequest) -> Bool {
         // Get the BBHTTPProtocolHandler class by name
         for cls in protocols {
@@ -497,14 +373,6 @@ extension Atlantis {
 
     func startSendingMessage(package: TrafficPackage) {
         notifyStoreAndDelegate(package)
-
-        // Send to Proxyman app
-        guard isEnabledTransportLayer else {
-            return
-        }
-
-        let message = Message.buildTrafficMessage(id: configuration.id, item: package)
-        transporter.send(package: message)
     }
 
     func startSendingWebsocketMessage(_ package: TrafficPackage) {
@@ -525,8 +393,6 @@ extension Atlantis {
 
         // Send the current one
         notifyStoreAndDelegate(package)
-        let message = Message.buildWebSocketMessage(id: configuration.id, item: package)
-        transporter.send(package: message)
     }
 
     private func attemptSendingAllWaitingWSPackages(id: String) {
@@ -540,8 +406,6 @@ extension Atlantis {
         // Send all waiting WS Message
         waitingList.forEach { item in
             notifyStoreAndDelegate(item)
-            let message = Message.buildWebSocketMessage(id: configuration.id, item: item)
-            transporter.send(package: message)
         }
 
         // Release the list
@@ -633,22 +497,5 @@ extension Atlantis {
         return delimiters
             .compactMap { text.range(of: $0) }
             .min { $0.lowerBound < $1.lowerBound }
-    }
-}
-
-// MARK: - Helper
-
-extension Bundle {
-
-    var hasLocalNetworkUsageDescription: Bool {
-        return Bundle.main.object(forInfoDictionaryKey: "NSLocalNetworkUsageDescription") as? String != nil
-    }
-
-    var hasBonjourServices: Bool {
-        guard let services = Bundle.main.object(forInfoDictionaryKey: "NSBonjourServices") as? [String] else {
-            return false
-        }
-        // It works fine if the app has many Bonjour services
-        return services.contains(where: { $0 == NetServiceTransport.Constants.netServiceType })
     }
 }
