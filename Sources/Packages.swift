@@ -5,6 +5,8 @@
 //  Created by Nghia Tran on 10/23/20.
 //  Copyright © 2020 Proxyman. All rights reserved.
 //
+//  Modified by Porthole contributors, 2026.
+//
 
 import Foundation
 #if os(iOS) || targetEnvironment(macCatalyst) || os(tvOS) || os(visionOS)
