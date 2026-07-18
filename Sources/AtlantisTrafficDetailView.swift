@@ -90,8 +90,8 @@ private struct AtlantisBodySectionView: View {
     let title: String
     let data: Data
     let contentType: String?
+    @Binding var query: String
 
-    @State private var query: String = ""
     @State private var revealed = false
 
     private var matchCount: Int {
@@ -115,18 +115,7 @@ private struct AtlantisBodySectionView: View {
                 }
             } else {
                 bodyContent
-                if isSearchable {
-                    TextField("Search \(title)", text: $query)
-                        .textFieldStyle(.roundedBorder)
-                }
             }
-        }
-    }
-
-    private var isSearchable: Bool {
-        switch atlantisBodyKind(data, contentType: contentType) {
-        case .json, .text: return true
-        default: return false
         }
     }
 
@@ -197,8 +186,7 @@ private struct AtlantisBodySectionView: View {
 private struct AtlantisHeadersSectionView: View {
     let title: String
     let headers: [Header]
-
-    @State private var query: String = ""
+    @Binding var query: String
 
     private var matchCount: Int {
         headers.reduce(0) { $0 + AtlantisBodySearch.matchCount(in: "\($1.key): \($1.value)", query: query) }
@@ -218,8 +206,6 @@ private struct AtlantisHeadersSectionView: View {
                             .textSelection(.enabled)
                     }
                 }
-                TextField("Search \(title)", text: $query)
-                    .textFieldStyle(.roundedBorder)
             }
         }
     }
@@ -230,10 +216,13 @@ private struct AtlantisHeadersDetailView: View {
     let title: String
     let headers: [Header]
 
+    @State private var query: String = ""
+
     var body: some View {
         List {
-            AtlantisHeadersSectionView(title: title, headers: headers)
+            AtlantisHeadersSectionView(title: title, headers: headers, query: $query)
         }
+        .searchable(text: $query)
         .navigationTitle(title)
     }
 }
@@ -244,10 +233,13 @@ private struct AtlantisBodyDetailView: View {
     let data: Data
     let contentType: String?
 
+    @State private var query: String = ""
+
     var body: some View {
         List {
-            AtlantisBodySectionView(title: title, data: data, contentType: contentType)
+            AtlantisBodySectionView(title: title, data: data, contentType: contentType, query: $query)
         }
+        .searchable(text: $query)
         .navigationTitle(title)
     }
 }
@@ -267,8 +259,9 @@ private struct AtlantisMessageDetailView: View {
 
     var body: some View {
         List {
-            AtlantisBodySectionView(title: "Content", data: data, contentType: nil)
+            AtlantisBodySectionView(title: "Content", data: data, contentType: nil, query: $query)
         }
+        .searchable(text: $query)
         .navigationTitle("Message")
     }
 }
