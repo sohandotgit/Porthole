@@ -199,12 +199,16 @@ private struct AtlantisHeadersSectionView: View {
                     .foregroundColor(.secondary)
             } else {
                 ForEach(Array(headers.enumerated()), id: \.offset) { _, header in
-                    HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(atlantisHighlighted(header.key, query: query))
+                            .font(.caption)
                             .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
                         Text(atlantisHighlighted(header.value, query: query))
+                            .font(.system(.footnote, design: .monospaced))
                             .textSelection(.enabled)
                     }
+                    .padding(.vertical, 2)
                 }
             }
         }
@@ -241,6 +245,25 @@ private struct AtlantisBodyDetailView: View {
         }
         .searchable(text: $query)
         .navigationTitle(title)
+    }
+}
+
+@available(iOS 15.0, macOS 12.0, *)
+private struct AtlantisOverviewRow: View {
+    let label: String
+    let value: String
+    var valueColor: Color = .primary
+
+    var body: some View {
+        HStack(alignment: .top) {
+            Text(label)
+                .foregroundColor(.secondary)
+            Spacer(minLength: 12)
+            Text(value)
+                .foregroundColor(valueColor)
+                .multilineTextAlignment(.trailing)
+                .textSelection(.enabled)
+        }
     }
 }
 
@@ -361,47 +384,23 @@ public struct AtlantisTrafficDetailView: View {
     public var body: some View {
         List {
             Section("Overview") {
-                HStack {
-                    Text("Method")
-                    Spacer()
-                    Text(package.request.method)
-                        .foregroundColor(AtlantisPalette.methodColor(package.request.method))
-                }
-                HStack {
-                    Text("URL")
-                    Spacer()
-                    Text(package.request.url)
-                        .textSelection(.enabled)
-                        .multilineTextAlignment(.trailing)
-                }
-                HStack {
-                    Text("Status")
-                    Spacer()
-                    Text(statusText)
-                }
+                AtlantisOverviewRow(label: "Method",
+                                    value: package.request.method,
+                                    valueColor: AtlantisPalette.methodColor(package.request.method))
+                AtlantisOverviewRow(label: "URL", value: package.request.url)
+                AtlantisOverviewRow(label: "Status", value: statusText)
                 if let error = package.error {
-                    HStack {
-                        Text("Error")
-                        Spacer()
-                        Text("\(error.code) · \(error.message)")
-                            .foregroundColor(.red)
-                    }
+                    AtlantisOverviewRow(label: "Error",
+                                        value: "\(error.code) · \(error.message)",
+                                        valueColor: .red)
                 }
-                HStack {
-                    Text("Duration")
-                    Spacer()
-                    Text(durationText)
-                }
-                HStack {
-                    Text("Content-Type")
-                    Spacer()
-                    Text(responseContentType ?? "—")
-                }
-                HStack {
-                    Text("Started")
-                    Spacer()
-                    Text(atlantisDateTimeFormatter.string(from: Date(timeIntervalSince1970: package.startAt)))
-                }
+                AtlantisOverviewRow(label: "Duration", value: durationText)
+                AtlantisOverviewRow(label: "Content-Type", value: responseContentType ?? "—")
+                AtlantisOverviewRow(label: "Started",
+                                    value: atlantisDateTimeFormatter.string(from: Date(timeIntervalSince1970: package.startAt)))
+            }
+
+            Section("Details") {
                 NavigationLink {
                     AtlantisHeadersDetailView(title: "Request Headers", headers: package.request.headers)
                 } label: {
