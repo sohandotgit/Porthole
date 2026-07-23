@@ -16,7 +16,7 @@ private func atlantisContentType(from headers: [Header]) -> String? {
     headers.first { $0.key.caseInsensitiveCompare("Content-Type") == .orderedSame }?.value
 }
 
-private enum AtlantisBodyKind {
+private enum AtlantisBodyKind: Sendable {
     case none
     case json(String)
     case image(Data)
@@ -28,7 +28,8 @@ private func atlantisBodyKind(_ data: Data, contentType: String?) -> AtlantisBod
     guard !data.isEmpty else { return .none }
     let ct = contentType?.lowercased() ?? ""
 
-    if let jsonObject = try? JSONSerialization.jsonObject(with: data),
+    if data.count < 5 * 1024 * 1024,
+       let jsonObject = try? JSONSerialization.jsonObject(with: data),
        let pretty = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]),
        let prettyString = String(data: pretty, encoding: .utf8) {
         return .json(prettyString)
@@ -83,7 +84,7 @@ private func atlantisHighlighted(_ text: String, query: String) -> AttributedStr
     return attributed
 }
 
-private let atlantisLargeBodyThreshold = 512 * 1024
+private let atlantisLargeBodyThreshold = 256 * 1024  // UX defer only; render path is safe at any size
 
 @available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisBodySectionView: View {
@@ -92,16 +93,20 @@ private struct AtlantisBodySectionView: View {
     let contentType: String?
     @Binding var query: String
 
+    @State private var kind: AtlantisBodyKind = .none
     @State private var revealed = false
 
+    // text pulled from cached kind — no reparse
+    private var bodyText: String? {
+        switch kind {
+        case .json(let t), .text(let t): return t
+        default: return nil
+        }
+    }
+
     private var matchCount: Int {
-        if case .text(let text) = atlantisBodyKind(data, contentType: contentType) {
-            return AtlantisBodySearch.matchCount(in: text, query: query)
-        }
-        if case .json(let text) = atlantisBodyKind(data, contentType: contentType) {
-            return AtlantisBodySearch.matchCount(in: text, query: query)
-        }
-        return 0
+        guard let t = bodyText else { return 0 }
+        return AtlantisBodySearch.matchCount(in: t, query: query)
     }
 
     var body: some View {
@@ -117,26 +122,25 @@ private struct AtlantisBodySectionView: View {
                 bodyContent
             }
         }
+        // classify once, off main; recompute only if data identity changes
+        .task(id: data) {
+            let computed = await Task.detached(priority: .userInitiated) {
+                atlantisBodyKind(data, contentType: contentType)
+            }.value
+            kind = computed
+        }
     }
 
     @ViewBuilder
     private var bodyContent: some View {
-        switch atlantisBodyKind(data, contentType: contentType) {
+        switch kind {
         case .none:
             Text("No body")
                 .foregroundColor(.secondary)
         case .json(let pretty):
-            ScrollView(.horizontal) {
-                Text(atlantisHighlighted(pretty, query: query))
-                    .font(.system(.footnote, design: .monospaced))
-                    .textSelection(.enabled)
-            }
+            AtlantisSelectableText(attributed: atlantisHighlighted(pretty, query: query))
         case .text(let text):
-            ScrollView(.horizontal) {
-                Text(atlantisHighlighted(text, query: query))
-                    .font(.system(.footnote, design: .monospaced))
-                    .textSelection(.enabled)
-            }
+            AtlantisSelectableText(attributed: atlantisHighlighted(text, query: query))
         case .image(let imageData):
             atlantisImageView(imageData)
         case .binary(let binaryData):
