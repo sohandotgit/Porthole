@@ -92,9 +92,11 @@ private struct AtlantisBodySectionView: View {
     let data: Data
     let contentType: String?
     @Binding var query: String
+    var chromeless: Bool = false
 
     @State private var kind: AtlantisBodyKind = .none
     @State private var revealed = false
+    @State private var highlighted: AttributedString = AttributedString("")
 
     // text pulled from cached kind — no reparse
     private var bodyText: String? {
@@ -109,17 +111,27 @@ private struct AtlantisBodySectionView: View {
         return AtlantisBodySearch.matchCount(in: t, query: query)
     }
 
+    private func recomputeHighlight() {
+        guard let t = bodyText else { highlighted = AttributedString(""); return }
+        highlighted = query.isEmpty
+            ? AttributedString(t)
+            : atlantisHighlighted(t, query: query)
+    }
+
     var body: some View {
-        Section(query.isEmpty ? title : "\(title) (\(matchCount))") {
-            if data.isEmpty {
-                Text("No body")
-                    .foregroundColor(.secondary)
-            } else if data.count > atlantisLargeBodyThreshold && !revealed {
-                Button("Show body (\(atlantisHumanBytes(data.count)))") {
-                    revealed = true
+        Group {
+            if chromeless {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(query.isEmpty ? title : "\(title) (\(matchCount))")
+                        .font(.headline)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    sectionBody
                 }
             } else {
-                bodyContent
+                Section(query.isEmpty ? title : "\(title) (\(matchCount))") {
+                    sectionBody
+                }
             }
         }
         // classify once, off main; recompute only if data identity changes
@@ -128,6 +140,22 @@ private struct AtlantisBodySectionView: View {
                 atlantisBodyKind(data, contentType: contentType)
             }.value
             kind = computed
+            recomputeHighlight()
+        }
+        .onChange(of: query) { _ in recomputeHighlight() }
+    }
+
+    @ViewBuilder
+    private var sectionBody: some View {
+        if data.isEmpty {
+            Text("No body")
+                .foregroundColor(.secondary)
+        } else if data.count > atlantisLargeBodyThreshold && !revealed {
+            Button("Show body (\(atlantisHumanBytes(data.count)))") {
+                revealed = true
+            }
+        } else {
+            bodyContent
         }
     }
 
@@ -137,10 +165,12 @@ private struct AtlantisBodySectionView: View {
         case .none:
             Text("No body")
                 .foregroundColor(.secondary)
-        case .json(let pretty):
-            AtlantisSelectableText(attributed: atlantisHighlighted(pretty, query: query))
-        case .text(let text):
-            AtlantisSelectableText(attributed: atlantisHighlighted(text, query: query))
+        case .json:
+            AtlantisSelectableText(attributed: highlighted)
+                .frame(minHeight: 120, maxHeight: .infinity)
+        case .text:
+            AtlantisSelectableText(attributed: highlighted)
+                .frame(minHeight: 120, maxHeight: .infinity)
         case .image(let imageData):
             atlantisImageView(imageData)
         case .binary(let binaryData):
@@ -244,8 +274,8 @@ private struct AtlantisBodyDetailView: View {
     @State private var query: String = ""
 
     var body: some View {
-        List {
-            AtlantisBodySectionView(title: title, data: data, contentType: contentType, query: $query)
+        VStack(alignment: .leading, spacing: 0) {
+            AtlantisBodySectionView(title: title, data: data, contentType: contentType, query: $query, chromeless: true)
         }
         .searchable(text: $query)
         .navigationTitle(title)
@@ -285,8 +315,8 @@ private struct AtlantisMessageDetailView: View {
     }
 
     var body: some View {
-        List {
-            AtlantisBodySectionView(title: "Content", data: data, contentType: nil, query: $query)
+        VStack(alignment: .leading, spacing: 0) {
+            AtlantisBodySectionView(title: "Content", data: data, contentType: nil, query: $query, chromeless: true)
         }
         .searchable(text: $query)
         .navigationTitle("Message")

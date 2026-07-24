@@ -7,8 +7,9 @@
 import SwiftUI
 
 /// Selectable, wrapping, large-text-safe body renderer.
-/// Replaces `Text(...).textSelection(.enabled)` inside a horizontal ScrollView,
-/// which hangs and renders blank on CoreText past ~tens of thousands of glyphs.
+/// Owns its own scroll so TextKit lazily lays out only the visible viewport —
+/// the whole body is never laid out up front. Fill it with a bounded frame from
+/// the caller (it does not self-size).
 @available(iOS 15.0, macOS 12.0, *)
 struct AtlantisSelectableText: View {
     let attributed: AttributedString
@@ -26,22 +27,28 @@ private struct _Representable: UIViewRepresentable {
     func makeUIView(context: Context) -> UITextView {
         let tv = UITextView()
         tv.isEditable = false
-        tv.isScrollEnabled = false            // let List own scroll; self-size height
+        tv.isScrollEnabled = true              // own scroll → TextKit lazy layout
         tv.backgroundColor = .clear
-        tv.textContainerInset = .zero
+        tv.textContainerInset = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
         tv.textContainer.lineFragmentPadding = 0
         tv.adjustsFontForContentSizeCategory = true
-        tv.setContentCompressionResistancePriority(.required, for: .vertical)
+        tv.font = UIFont.monospacedSystemFont(
+            ofSize: UIFont.preferredFont(forTextStyle: .footnote).pointSize,
+            weight: .regular)
         return tv
     }
 
     func updateUIView(_ tv: UITextView, context: Context) {
-        let ns = NSMutableAttributedString(attributed)
-        let size = UIFont.preferredFont(forTextStyle: .footnote).pointSize
-        ns.addAttribute(.font,
-                        value: UIFont.monospacedSystemFont(ofSize: size, weight: .regular),
-                        range: NSRange(location: 0, length: ns.length))
-        tv.attributedText = ns
+        // Skip redundant O(n) restyling when the content has not changed.
+        if context.coordinator.last == attributed { return }
+        context.coordinator.last = attributed
+        tv.attributedText = NSAttributedString(attributed)
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var last: AttributedString?
     }
 }
 #elseif os(macOS)
@@ -51,23 +58,32 @@ import AppKit
 private struct _Representable: NSViewRepresentable {
     let attributed: AttributedString
 
-    func makeNSView(context: Context) -> NSTextView {
-        let tv = NSTextView()
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSTextView.scrollableTextView()
+        let tv = scroll.documentView as! NSTextView
         tv.isEditable = false
         tv.isSelectable = true
         tv.drawsBackground = false
-        tv.textContainerInset = .zero
+        tv.textContainerInset = NSSize(width: 8, height: 8)
         tv.textContainer?.lineFragmentPadding = 0
-        return tv
+        tv.font = NSFont.monospacedSystemFont(
+            ofSize: NSFont.preferredFont(forTextStyle: .footnote).pointSize,
+            weight: .regular)
+        scroll.drawsBackground = false
+        return scroll
     }
 
-    func updateNSView(_ tv: NSTextView, context: Context) {
-        let ns = NSMutableAttributedString(attributed)
-        let size = NSFont.preferredFont(forTextStyle: .footnote).pointSize
-        ns.addAttribute(.font,
-                        value: NSFont.monospacedSystemFont(ofSize: size, weight: .regular),
-                        range: NSRange(location: 0, length: ns.length))
-        tv.textStorage?.setAttributedString(ns)
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard let tv = scroll.documentView as? NSTextView else { return }
+        if context.coordinator.last == attributed { return }
+        context.coordinator.last = attributed
+        tv.textStorage?.setAttributedString(NSAttributedString(attributed))
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var last: AttributedString?
     }
 }
 #endif

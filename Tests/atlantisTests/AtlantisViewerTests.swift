@@ -388,6 +388,13 @@ final class AtlantisTrafficDetailViewTests: XCTestCase {
         let binaryHeaders = [Header(key: "Content-Type", value: "application/octet-stream")]
         let binaryPackage = makePackage(respHeaders: binaryHeaders, respBody: Data([0xFF, 0xD8, 0xFF, 0x00]))
         _ = AtlantisTrafficDetailView(package: binaryPackage).body
+
+        let largeArray = (0..<2000).map { "item-\($0)-\(String(repeating: "x", count: 30))" }
+        let largeBody = try! JSONSerialization.data(withJSONObject: ["items": largeArray])
+        XCTAssertGreaterThan(largeBody.count, 80_000)
+        let largeHeaders = [Header(key: "Content-Type", value: "application/json")]
+        let largePackage = makePackage(respHeaders: largeHeaders, respBody: largeBody)
+        _ = AtlantisTrafficDetailView(package: largePackage).body
     }
 
     func testWSDetailPath() {
