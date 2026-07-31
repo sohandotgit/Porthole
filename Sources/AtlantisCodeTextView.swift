@@ -163,7 +163,7 @@ private struct _Representable: UIViewRepresentable {
             tv.textContainer.size = CGSize(width: tv.bounds.width, height: .greatestFiniteMagnitude)
         } else {
             tv.textContainer.widthTracksTextView = false
-            tv.textContainer.size = CGSize(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+            tv.textContainer.size = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         }
     }
 
