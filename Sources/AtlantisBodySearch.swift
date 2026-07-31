@@ -29,4 +29,23 @@ public enum AtlantisBodySearch {
     public static func matchCount(in text: String, query: String) -> Int {
         matchRanges(in: text, query: query).count
     }
+
+    /// Case-insensitive, all non-overlapping `NSRange`s of `query` within `text`,
+    /// ascending. Query is trimmed before matching; empty/whitespace ⇒ `[]`.
+    static func nsMatchRanges(in text: String, query: String) -> [NSRange] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+
+        let haystack = text as NSString
+        var ranges: [NSRange] = []
+        var searchRange = NSRange(location: 0, length: haystack.length)
+        while searchRange.length > 0 {
+            let found = haystack.range(of: trimmed, options: .caseInsensitive, range: searchRange)
+            guard found.location != NSNotFound else { break }
+            ranges.append(found)
+            let nextLocation = found.location + found.length
+            searchRange = NSRange(location: nextLocation, length: haystack.length - nextLocation)
+        }
+        return ranges
+    }
 }

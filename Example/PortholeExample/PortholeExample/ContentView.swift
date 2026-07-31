@@ -23,6 +23,33 @@ struct ContentView: View {
                 makeExampleAPICalls()
             }
 
+            Divider()
+
+            Text("Body viewer states")
+                .font(.headline)
+
+            Button("Pretty + search (14 KB JSON)") {
+                DemoBodyPayloads.fireJSON14KB()
+            }
+
+            Button("Large-body gate (84 KB JSON)") {
+                DemoBodyPayloads.fireJSON84KB()
+            }
+
+            Button("Image mode (PNG)") {
+                DemoBodyPayloads.firePNGImage()
+            }
+
+            Button("Hex + invalid UTF-8 banner") {
+                DemoBodyPayloads.fireInvalidUTF8Binary()
+            }
+
+            Button("Empty state (GET, no body)") {
+                DemoBodyPayloads.fireEmptyBodyGET()
+            }
+
+            Divider()
+
             Button("View Traffic") {
                 isShowingTraffic = true
             }
