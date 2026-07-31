@@ -347,8 +347,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sohandotgit/Porthole";
 			requirement = {
-				branch = main;
-				kind = branch;
+				kind = exactVersion;
+				version = 3.0.2;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

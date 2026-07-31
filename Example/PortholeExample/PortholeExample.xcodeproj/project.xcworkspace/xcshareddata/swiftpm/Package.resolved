@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sohandotgit/Porthole",
       "state" : {
-        "branch" : "main",
-        "revision" : "23f75bc34abb6cf7b3dd7e3d06a3b312ff8f4f5d"
+        "revision" : "990a15cbd8217375d11717da822417a93bde9bfc",
+        "version" : "3.0.2"
       }
     }
   ],
