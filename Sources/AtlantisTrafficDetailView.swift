@@ -20,12 +20,6 @@ private func atlantisHumanBytes(_ count: Int) -> String {
     AtlantisFormat.bytes(count)
 }
 
-private let atlantisDateTimeFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
-    return formatter
-}()
-
 /// Highlights `query` matches in `text` with a yellow background.
 private func atlantisHighlighted(_ text: String, query: String) -> AttributedString {
     var attributed = AttributedString(text)
@@ -70,7 +64,7 @@ private struct AtlantisHeadersSectionView: View {
     }
 }
 
-private struct AtlantisHeadersDetailView: View {
+struct AtlantisHeadersDetailView: View {
     let title: String
     let headers: [Header]
 
@@ -85,25 +79,7 @@ private struct AtlantisHeadersDetailView: View {
     }
 }
 
-private struct AtlantisOverviewRow: View {
-    let label: String
-    let value: String
-    var valueColor: Color = .primary
-
-    var body: some View {
-        HStack(alignment: .top) {
-            Text(label)
-                .foregroundColor(.secondary)
-            Spacer(minLength: 12)
-            Text(value)
-                .foregroundColor(valueColor)
-                .multilineTextAlignment(.trailing)
-                .textSelection(.enabled)
-        }
-    }
-}
-
-private struct AtlantisMessageDetailView: View {
+struct AtlantisMessageDetailView: View {
     let message: WebsocketMessagePackage
 
     private var data: Data {
@@ -119,7 +95,7 @@ private struct AtlantisMessageDetailView: View {
     }
 }
 
-private struct AtlantisMessageRowView: View {
+struct AtlantisMessageRowView: View {
     let message: WebsocketMessagePackage
 
     private var directionInfo: (label: String, systemImage: String, color: Color) {
@@ -171,8 +147,9 @@ private struct AtlantisMessageRowView: View {
     }
 }
 
-/// Detail view for a single `TrafficPackage` — overview, headers, content-type-aware
-/// bodies, copy/share actions, and (for WS/SSE) the message list.
+/// Detail view for a single `TrafficPackage` — the Request Overview screen
+/// (design/request-overview-ui.md §11): header band, timing card, and a
+/// family-specific content region, composed from `AtlantisOverviewModel`.
 public struct AtlantisTrafficDetailView: View {
 
     private let package: TrafficPackage
@@ -184,126 +161,106 @@ public struct AtlantisTrafficDetailView: View {
         self.package = package
     }
 
-    private var hasError: Bool { package.error != nil }
-
-    private var statusText: String {
-        guard let statusCode = package.response?.statusCode else { return "—" }
-        let reason = HTTPURLResponse.localizedString(forStatusCode: statusCode)
-        return "\(statusCode) \(reason)"
-    }
-
-    private var durationText: String {
-        guard let endAt = package.endAt else { return "in-flight" }
-        let seconds = endAt - package.startAt
-        if seconds < 1 {
-            return String(format: "%.0f ms", seconds * 1000)
-        }
-        return String(format: "%.2f s", seconds)
-    }
-
-    private var responseContentType: String? {
-        package.response.map { atlantisContentType(from: $0.headers) } ?? nil
-    }
-
-    private var isWebSocketOrSSE: Bool {
-        package.packageType == .websocket || package.response?.isServerSentEventStream == true
+    private var model: AtlantisOverviewModel {
+        AtlantisOverviewModel(package: package, now: Date().timeIntervalSince1970)
     }
 
     public var body: some View {
-        List {
-            Section("Overview") {
-                AtlantisOverviewRow(label: "Method",
-                                    value: package.request.method,
-                                    valueColor: AtlantisPalette.methodColor(package.request.method))
-                AtlantisOverviewRow(label: "URL", value: package.request.url)
-                AtlantisOverviewRow(label: "Status", value: statusText)
-                if let error = package.error {
-                    AtlantisOverviewRow(label: "Error",
-                                        value: "\(error.code) · \(error.message)",
-                                        valueColor: .red)
-                }
-                AtlantisOverviewRow(label: "Duration", value: durationText)
-                AtlantisOverviewRow(label: "Content-Type", value: responseContentType ?? "—")
-                AtlantisOverviewRow(label: "Started",
-                                    value: atlantisDateTimeFormatter.string(from: Date(timeIntervalSince1970: package.startAt)))
-            }
-
-            Section("Details") {
-                NavigationLink {
-                    AtlantisHeadersDetailView(title: "Request Headers", headers: package.request.headers)
-                } label: {
-                    HStack {
-                        Text("Request Headers")
-                        Spacer()
-                        Text("\(package.request.headers.count)")
-                            .foregroundColor(.secondary)
+        let model = self.model
+        ScrollView {
+            VStack(spacing: 0) {
+                if model.isLive {
+                    // Single TimelineView for the whole live screen (§10) — rebuilding the
+                    // model each tick is what makes the WebSocket panel's counts/bytes/
+                    // sparkline actually refresh at 1 Hz instead of freezing at push time (F1).
+                    TimelineView(.periodic(from: .now, by: AtlantisSyntaxTheme.elapsedTickInterval)) { context in
+                        let tickModel = AtlantisOverviewModel(package: package, now: context.date.timeIntervalSince1970)
+                        let liveValue = tickModel.liveValue(now: context.date.timeIntervalSince1970)
+                        AtlantisOverviewBandView(model: tickModel, liveValue: liveValue)
+                        contentColumn(model: tickModel, liveValue: liveValue)
                     }
-                }
-                NavigationLink {
-                    AtlantisHeadersDetailView(title: "Response Headers", headers: package.response?.headers ?? [])
-                } label: {
-                    HStack {
-                        Text("Response Headers")
-                        Spacer()
-                        Text("\(package.response?.headers.count ?? 0)")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                AtlantisBodyPreviewCard(title: "Request Body",
-                                        data: package.request.body ?? Data(),
-                                        contentType: atlantisContentType(from: package.request.headers),
-                                        method: package.request.method,
-                                        side: .request,
-                                        statusCode: nil)
-                AtlantisBodyPreviewCard(title: "Response Body",
-                                        data: package.responseBodyData,
-                                        contentType: responseContentType,
-                                        method: package.request.method,
-                                        side: .response,
-                                        statusCode: package.response?.statusCode)
-            }
-
-            if isWebSocketOrSSE {
-                Section("Messages") {
-                    ForEach(Array(package.websocketMessages.enumerated()), id: \.offset) { _, message in
-                        AtlantisMessageRowView(message: message)
-                    }
+                } else {
+                    AtlantisOverviewBandView(model: model, liveValue: nil)
+                    contentColumn(model: model, liveValue: nil)
                 }
             }
         }
-        .navigationTitle("Detail")
+        .background(Color(AtlantisSyntaxTheme.pageFill).ignoresSafeArea())
+        .scrollContentBackground(.hidden)
+        .navigationTitle(model.navigationTitle)
+        #if os(iOS) || targetEnvironment(macCatalyst)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color(AtlantisSyntaxTheme.bandFill(model.family)), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(model.bandChromeIsDark ? .dark : nil, for: .navigationBar)
         .toolbar {
             ToolbarItemGroup {
                 Menu {
-                    Button("Copy cURL") {
-                        AtlantisPasteboard.copy(package.curlCommand())
-                    }
-                    if let requestBody = package.requestBodyForCopy() {
-                        Button("Copy Request Body") {
-                            AtlantisPasteboard.copy(requestBody)
-                        }
-                    }
-                    if let responseBody = package.responseBodyForCopy() {
-                        Button("Copy Response Body") {
-                            AtlantisPasteboard.copy(responseBody)
-                        }
-                    }
-                    #if os(iOS) || targetEnvironment(macCatalyst)
                     Button("Share cURL") {
                         shareItems = [package.curlCommand()]
                         showsShareSheet = true
                     }
-                    #endif
                 } label: {
                     Label("Actions", systemImage: "ellipsis.circle")
                 }
+                .disabled(package.request.url.isEmpty)
             }
         }
-        #if os(iOS) || targetEnvironment(macCatalyst)
         .sheet(isPresented: $showsShareSheet) {
             AtlantisShareSheet(activityItems: shareItems)
         }
+        #elseif os(macOS)
+        .toolbarBackground(Color(AtlantisSyntaxTheme.bandFill(model.family)), for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
         #endif
+    }
+
+    // MARK: - Content column (§4, §11)
+
+    @ViewBuilder
+    private func contentColumn(model: AtlantisOverviewModel, liveValue: String?) -> some View {
+        let isWebSocket = model.family == .websocket
+        VStack(alignment: .leading, spacing: isWebSocket ? AtlantisSyntaxTheme.contentGapWebSocket : AtlantisSyntaxTheme.contentGapStandard) {
+            AtlantisOverviewTimingCard(model: model, liveValue: liveValue)
+
+            switch model.family {
+            case .success, .clientError, .serverError:
+                AtlantisOverviewDetailsCard(model: model)
+            case .transportError:
+                AtlantisOverviewStatGridView(tiles: model.statTiles(for: .transportError))
+            case .pending:
+                AtlantisOverviewStatGridView(tiles: model.statTiles(for: .pending))
+            case .websocket:
+                AtlantisOverviewWebSocketView(model: model)
+            }
+
+            if let action = model.footerAction {
+                footerButton(action: action)
+            }
+        }
+        .padding(.top, isWebSocket ? AtlantisSyntaxTheme.contentPaddingTopWebSocket : AtlantisSyntaxTheme.contentPaddingTopStandard)
+        .padding(.horizontal, AtlantisSyntaxTheme.contentPaddingHorizontal)
+        .padding(.bottom, AtlantisSyntaxTheme.contentPaddingBottom)
+    }
+
+    // MARK: - Footer button (§C6)
+
+    private func footerButton(action: AtlantisOverviewFooterAction) -> some View {
+        Button {
+            switch action {
+            case .copyCurl:
+                AtlantisPasteboard.copy(package.curlCommand())
+            }
+        } label: {
+            Text("Copy cURL")
+                .font(Font(AtlantisSyntaxTheme.footerButtonFont))
+                .foregroundColor(Color(AtlantisSyntaxTheme.accent))
+                .frame(maxWidth: .infinity)
+                .frame(height: AtlantisSyntaxTheme.footerButtonHeight)
+                .background(Color(AtlantisSyntaxTheme.accentFill))
+                .cornerRadius(AtlantisSyntaxTheme.footerButtonCornerRadius)
+        }
+        .buttonStyle(.plain)
     }
 }
 

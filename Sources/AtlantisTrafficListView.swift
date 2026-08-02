@@ -6,28 +6,18 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
+/// Shim. The Traffic List roadmap replaces both call sites; until then these keep
+/// `AtlantisTrafficListView` compiling with theme-sourced color.
 enum AtlantisPalette {
     static func statusColor(statusCode: Int?, hasError: Bool) -> Color {
-        if hasError { return .red }
-        guard let statusCode = statusCode else { return .gray }
-        switch statusCode {
-        case 200..<300: return .green
-        case 300..<400: return .teal
-        case 400..<500: return .orange
-        case 500..<600: return .red
-        default: return .gray
-        }
+        Color(AtlantisSyntaxTheme.statusDeep(
+            AtlantisStatusFamily(statusCode: statusCode, hasError: hasError)))
     }
 
+    /// The overview colors the method badge by status family, not by verb. The list view
+    /// still wants a per-verb hue; it gets the neutral label color until its own roadmap.
     static func methodColor(_ method: String) -> Color {
-        switch method.uppercased() {
-        case "GET": return .blue
-        case "POST": return .green
-        case "PUT": return .orange
-        case "PATCH": return .purple
-        case "DELETE": return .red
-        default: return .gray
-        }
+        Color(AtlantisSyntaxTheme.labelHeading)
     }
 }
 

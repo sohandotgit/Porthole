@@ -372,4 +372,306 @@ enum AtlantisSyntaxTheme {
     static let streamYieldNanoseconds: UInt64 = 1_000_000
     static let preparingStackGap: CGFloat = 10
     static let preparingGlyphScale: CGFloat = 1.2
+
+    // MARK: - Request Overview: band surfaces — request-overview-tokens.md §1
+
+    static let bandFillGreen = pair(0xEAF7EC, 0x10240F)
+    static let bandFillRed = pair(0xFFEDEB, 0x2A0F0D)
+    static let bandFillOrange = pair(0xFFF4E5, 0x2A1B05)
+    static let bandFillPurple = pair(0xF6EDFF, 0x1E1030)
+
+    static let bandHairlineGreen = pair(0x34C759, 0x30D158, lightAlpha: 0.35, darkAlpha: 0.32)
+    static let bandHairlineRed = pair(0xFF3B30, 0xFF453A, lightAlpha: 0.30, darkAlpha: 0.32)
+    static let bandHairlineOrange = pair(0xFF9500, 0xFF9F0A, lightAlpha: 0.35, darkAlpha: 0.32)
+    static let bandHairlinePurple = pair(0xAF52DE, 0xBF5AF2, lightAlpha: 0.35, darkAlpha: 0.32)
+
+    static let bandHairlineWidth: CGFloat = 0.5
+
+    // MARK: - Request Overview: band content — request-overview-tokens.md §2
+
+    static let chipFillGreen = pair(0x34C759, 0x30D158, lightAlpha: 0.18, darkAlpha: 0.20)
+    static let chipFillRed = pair(0xFF3B30, 0xFF453A, lightAlpha: 0.14, darkAlpha: 0.20)
+    static let chipFillOrange = pair(0xFF9500, 0xFF9F0A, lightAlpha: 0.18, darkAlpha: 0.22)
+    static let chipFillPurple = pair(0xAF52DE, 0xBF5AF2, lightAlpha: 0.16, darkAlpha: 0.22)
+
+    static let statusDeepGreen = pair(0x12592A, 0x4FE070)
+    static let statusDeepRed = pair(0xA81C14, 0xFF6B5E)
+    static let statusDeepOrange = pair(0x8A4300, 0xFFB340)
+    static let statusMidGreen = pair(0x1A6B33, 0x7BE495)
+    static let statusMidRed = pair(0xC9241B, 0xFF9A90)
+    static let statusMidOrange = pair(0xB25000, 0xFFC46B)
+    static let statusMidPurple = pair(0x7A1FA2, 0xD8A0F5)
+
+    static let hostLabelGreen = pair(0x3C6B45, 0x8FBF9C)
+    static let hostLabelRed = pair(0x8A5C58, 0xC9A09B)
+    static let hostLabelOrange = pair(0x8A6A45, 0xD9BE93)
+    static let hostLabelPurple = pair(0x6E3E8C, 0xC9A6E0)
+
+    static let affordanceFillGreen = pair(0x34C759, 0x30D158, lightAlpha: 0.16, darkAlpha: 0.20)
+    static let affordanceFillRed = pair(0xFF3B30, 0xFF453A, lightAlpha: 0.12, darkAlpha: 0.20)
+    static let affordanceFillOrange = pair(0xFF9500, 0xFF9F0A, lightAlpha: 0.18, darkAlpha: 0.22)
+    static let affordanceFillPurple = pair(0xAF52DE, 0xBF5AF2, lightAlpha: 0.16, darkAlpha: 0.22)
+
+    /// Exhaustive over `AtlantisStatusFamily` — a seventh family cannot be added
+    /// without visiting every token group (request-overview-tokens.md §0).
+    static func bandFill(_ family: AtlantisStatusFamily) -> PlatformColor {
+        switch family {
+        case .success: return bandFillGreen
+        case .clientError, .pending: return bandFillOrange
+        case .serverError, .transportError: return bandFillRed
+        case .websocket: return bandFillPurple
+        }
+    }
+
+    static func bandHairline(_ family: AtlantisStatusFamily) -> PlatformColor {
+        switch family {
+        case .success: return bandHairlineGreen
+        case .clientError, .pending: return bandHairlineOrange
+        case .serverError, .transportError: return bandHairlineRed
+        case .websocket: return bandHairlinePurple
+        }
+    }
+
+    static func chipFill(_ family: AtlantisStatusFamily) -> PlatformColor {
+        switch family {
+        case .success: return chipFillGreen
+        case .clientError, .pending: return chipFillOrange
+        case .serverError, .transportError: return chipFillRed
+        case .websocket: return chipFillPurple
+        }
+    }
+
+    static func statusDeep(_ family: AtlantisStatusFamily) -> PlatformColor {
+        switch family {
+        case .success: return statusDeepGreen
+        case .clientError, .pending: return statusDeepOrange
+        case .serverError, .transportError: return statusDeepRed
+        case .websocket: return labelPrimary
+        }
+    }
+
+    static func statusMid(_ family: AtlantisStatusFamily) -> PlatformColor {
+        switch family {
+        case .success: return statusMidGreen
+        case .clientError, .pending: return statusMidOrange
+        case .serverError, .transportError: return statusMidRed
+        case .websocket: return statusMidPurple
+        }
+    }
+
+    static func hostLabel(_ family: AtlantisStatusFamily) -> PlatformColor {
+        switch family {
+        case .success: return hostLabelGreen
+        case .clientError, .pending: return hostLabelOrange
+        case .serverError, .transportError: return hostLabelRed
+        case .websocket: return hostLabelPurple
+        }
+    }
+
+    static func affordanceFill(_ family: AtlantisStatusFamily) -> PlatformColor {
+        switch family {
+        case .success: return affordanceFillGreen
+        case .clientError, .pending: return affordanceFillOrange
+        case .serverError, .transportError: return affordanceFillRed
+        case .websocket: return affordanceFillPurple
+        }
+    }
+
+    static func affordanceGlyph(_ family: AtlantisStatusFamily) -> PlatformColor {
+        statusMid(family)
+    }
+
+    // MARK: - Request Overview: path card / error card — request-overview-tokens.md §3
+
+    static let pathCardFill = pair(0xFFFFFF, 0xFFFFFF, lightAlpha: 0.72, darkAlpha: 0.07)
+    static let errorCardFill = pair(0xFFFFFF, 0xFFFFFF, lightAlpha: 0.80, darkAlpha: 0.07)
+    static let errorHeadline = pair(0xA81C14, 0xFF6B5E)
+    static let errorCode = pair(0x8A231D, 0xFF9A90)
+    static let errorButtonFill = pair(0xFF3B30, 0xFF453A, lightAlpha: 0.12, darkAlpha: 0.20)
+    static let errorButtonLabel = pair(0xC9241B, 0xFF9A90)
+
+    // MARK: - Request Overview: cards, rows, tiles, skeleton — request-overview-tokens.md §4
+
+    static let chevronPassive = pair(0xC7C7CC, 0x48484A)
+    static let chevronDimmed = pair(0xE5E5EA, 0x2C2C2E)
+    static let rowIconAccentFill = accentFill
+    static let rowIconAccentGlyph = accent
+    static let rowIconSuccessFill = affordanceFillGreen
+    static let rowIconSuccessGlyph = pair(0x248A3D, 0x4FE070)
+    static let rowIconNeutralFill = controlTrackFill
+    static let rowIconNeutralGlyph = labelTertiary
+    static let rowDividerInset: CGFloat = 53
+    static let skeletonBarPrimary = pair(0x767680, 0x767680, lightAlpha: 0.14, darkAlpha: 0.22)
+    static let skeletonBarSecondary = pair(0x767680, 0x767680, lightAlpha: 0.10, darkAlpha: 0.16)
+
+    // MARK: - Request Overview: WebSocket panel — request-overview-tokens.md §5
+
+    static let wsLiveDot = pair(0x34C759, 0x30D158)
+    static let wsLiveDotHalo = pair(0x34C759, 0x30D158, lightAlpha: 0.18, darkAlpha: 0.18)
+    static let wsClosedDot = labelTertiary
+    static let sparkReceived = pair(0x34C759, 0x30D158)
+    static let sparkSent = accent
+    static let sparkEmpty = neutralFill
+    static let statValueReceived = pair(0x248A3D, 0x30D158)
+    static let statValueSent = accent
+    static let statValueRate = labelPrimary
+    static let chipRecvFill = pair(0x34C759, 0x30D158)
+    static let chipRecvLabel = pair(0x00250C, 0x00250C)
+    static let chipSentFill = accent
+    static let chipSentLabel = pair(0xFFFFFF, 0xFFFFFF)
+    static let chipPingFill = neutralFill
+    static let chipPingLabel = labelSecondary
+    static let chipCloseFill = pair(0xFF3B30, 0xFF453A, lightAlpha: 0.16, darkAlpha: 0.22)
+    static let chipCloseLabel = statusMidRed
+
+    // MARK: - Request Overview: fonts — request-overview-tokens.md §6
+
+    static var bandMethodChipFont: PlatformFont { monospaced(11, weight: .semibold) }
+    static var bandCaptionFont: PlatformFont { system(12, weight: .medium) }
+    static var bandNumeralFont: PlatformFont { monospaced(44, weight: .bold) }
+    static var bandReasonFont: PlatformFont { system(20, weight: .semibold) }
+    static var bandWordFont: PlatformFont { system(34, weight: .bold) }
+    static var bandWordFontCompact: PlatformFont { system(30, weight: .bold) }
+    static var bandErrorCodeFont: PlatformFont { monospaced(15, weight: .semibold) }
+    static var bandDurationFont: PlatformFont { system(24, weight: .bold) }
+    static var bandDurationFontMono: PlatformFont { monospaced(24, weight: .bold) }
+    static var bandUptimeFont: PlatformFont { monospaced(22, weight: .bold) }
+    static var bandSubLineFont: PlatformFont { system(13, weight: .regular) }
+    static var pathFont: PlatformFont { monospaced(16, weight: .semibold) }
+    static var pathHostFont: PlatformFont { system(13, weight: .regular) }
+    static var errorHeadlineFont: PlatformFont { system(15, weight: .semibold) }
+    static var errorCodeFont: PlatformFont { monospaced(13, weight: .regular) }
+    static var errorButtonFont: PlatformFont { system(14, weight: .medium) }
+    static var cardTitleFont: PlatformFont { system(13, weight: .semibold) }
+    static var cardAccessoryFont: PlatformFont { monospaced(12, weight: .medium) }
+    static var cardRowLabelFont: PlatformFont { system(13, weight: .regular) }
+    static var cardRowValueFont: PlatformFont { monospaced(13, weight: .medium) }
+    static var detailRowTitleFont: PlatformFont { system(16, weight: .regular) }
+    static var detailRowAccessoryFont: PlatformFont { system(15, weight: .regular) }
+    static var overviewBadgeFont: PlatformFont { monospaced(10, weight: .semibold) }
+    static var tileValueFont: PlatformFont { system(22, weight: .bold) }
+    static var tileValueFontCompact: PlatformFont { system(15, weight: .semibold) }
+    static var tileDetailFont: PlatformFont { monospaced(12, weight: .regular) }
+    static var tileDetailFontSystem: PlatformFont { system(12, weight: .regular) }
+    static var tileDimmedFont: PlatformFont { system(14, weight: .regular) }
+    static var tileSkeletonLabelFont: PlatformFont { system(13, weight: .regular) }
+    static var wsStatValueFont: PlatformFont { monospaced(19, weight: .semibold) }
+    static var wsStatCaptionFont: PlatformFont { system(11, weight: .regular) }
+    static var wsWindowLabelFont: PlatformFont { monospaced(11, weight: .regular) }
+    static var wsSeeAllFont: PlatformFont { system(12, weight: .regular) }
+    static var wsChipFont: PlatformFont { monospaced(10, weight: .semibold) }
+    static var wsMessageMetaFont: PlatformFont { monospaced(11, weight: .regular) }
+    static var wsMessageBodyFont: PlatformFont { monospaced(12, weight: .regular) }
+    static var footerButtonFont: PlatformFont { system(16, weight: .medium) }
+
+    // MARK: - Request Overview: metrics — request-overview-tokens.md §7
+
+    static let bandPaddingTop: CGFloat = 6
+    static let bandPaddingHorizontal: CGFloat = 20
+    static let bandPaddingBottomWide: CGFloat = 20
+    static let bandPaddingBottomCompact: CGFloat = 18
+    static let bandStackGapWide: CGFloat = 14
+    static let bandStackGapCompact: CGFloat = 13
+    static let bandTopRowGap: CGFloat = 12
+    static let bandLeadingColumnGap: CGFloat = 6
+    static let bandLeadingColumnGapCompact: CGFloat = 7
+    static let bandBadgeRowGap: CGFloat = 8
+    static let bandStatusRowGap: CGFloat = 9
+    static let bandStatusRowGapWide: CGFloat = 10
+    static let bandTrailingColumnGap: CGFloat = 4
+    static let methodChipCornerRadius: CGFloat = 6
+    static let methodChipPaddingVertical: CGFloat = 5
+    static let methodChipPaddingHorizontal: CGFloat = 7
+    static let liveDotSize: CGFloat = 9
+    static let liveDotHaloRadius: CGFloat = 5
+    static let pathCardCornerRadius: CGFloat = 12
+    static let pathCardPadding: CGFloat = 12
+    static let pathCardGap: CGFloat = 11
+    static let pathTextGap: CGFloat = 4
+    static let copyTileSize: CGFloat = 32
+    static let copyTileCornerRadius: CGFloat = 8
+    static let copyTileGlyphSize: CGFloat = 16
+    static let copyTileGlyphStrokeWidth: CGFloat = 1.6
+    static let errorCardCornerRadius: CGFloat = 12
+    static let errorCardPadding: CGFloat = 12
+    static let errorCardGap: CGFloat = 8
+    static let errorButtonRowTopPadding: CGFloat = 2
+    static let errorButtonHeight: CGFloat = 34
+    static let errorButtonCornerRadius: CGFloat = 9
+    static let contentGapStandard: CGFloat = 18
+    static let contentGapWebSocket: CGFloat = 14
+    static let contentPaddingTopStandard: CGFloat = 18
+    static let contentPaddingTopWebSocket: CGFloat = 16
+    static let contentPaddingHorizontal: CGFloat = 16
+    static let contentPaddingBottom: CGFloat = 18
+    static let overviewCardCornerRadius: CGFloat = 14
+    static let overviewCardPadding: CGFloat = 14
+    static let overviewCardGap: CGFloat = 10
+    static let timingRowGap: CGFloat = 7
+    static let detailRowPaddingVertical: CGFloat = 11
+    static let detailRowPaddingHorizontal: CGFloat = 14
+    static let detailRowGap: CGFloat = 11
+    static let detailRowIconSize: CGFloat = 28
+    static let detailRowIconCornerRadius: CGFloat = 7
+    static let detailRowGlyphSize: CGFloat = 15
+    static let detailRowGlyphStrokeWidth: CGFloat = 1.6
+    static let detailRowAccessoryGap: CGFloat = 7
+    static let detailDividerWidth: CGFloat = 0.5
+    static let detailDividerInset: CGFloat = 53
+    static let chevronWidth: CGFloat = 8
+    static let chevronHeight: CGFloat = 14
+    static let chevronStrokeWidth: CGFloat = 2
+    static let overviewBadgeCornerRadius: CGFloat = 5
+    static let overviewBadgePaddingVertical: CGFloat = 4
+    static let overviewBadgePaddingHorizontal: CGFloat = 6
+    static let statTileMinHeight: CGFloat = 96
+    static let statTilePadding: CGFloat = 13
+    static let statTileGap: CGFloat = 9
+    static let statTileHeaderGap: CGFloat = 7
+    static let statTileGlyphSize: CGFloat = 15
+    static let statTileChevronWidth: CGFloat = 7
+    static let statTileChevronHeight: CGFloat = 12
+    static let statGridSpacing: CGFloat = 10
+    static let skeletonBarHeight: CGFloat = 11
+    static let skeletonBarCornerRadius: CGFloat = 4
+    static let skeletonBarGap: CGFloat = 6
+    static let skeletonBarWidthPrimary: CGFloat = 0.58
+    static let skeletonBarWidthSecondary: CGFloat = 0.34
+    static let skeletonRowGap: CGFloat = 10
+    static let wsStatTileCornerRadius: CGFloat = 12
+    static let wsStatTilePadding: CGFloat = 11
+    static let wsStatTileGap: CGFloat = 5
+    static let sparkCardCornerRadius: CGFloat = 12
+    static let sparkCardPadding: CGFloat = 12
+    static let sparkCardGap: CGFloat = 8
+    static let sparkHeight: CGFloat = 34
+    static let sparkBarGap: CGFloat = 3
+    static let sparkBarCornerRadius: CGFloat = 2
+    static let sparkBucketCount: Int = 14
+    static let sparkMinHeightFraction: Double = 0.08
+    static let sparkWindowSeconds: TimeInterval = 240
+    static let messagesHeaderGap: CGFloat = 8
+    static let messagesHeaderPaddingHorizontal: CGFloat = 4
+    static let messagePreviewCount: Int = 3
+    static let messageCardCornerRadius: CGFloat = 12
+    static let messageCardPaddingVertical: CGFloat = 11
+    static let messageCardPaddingHorizontal: CGFloat = 12
+    static let messageCardGap: CGFloat = 5
+    static let messageCardStackGap: CGFloat = 8
+    static let messageHeaderGap: CGFloat = 7
+    static let messageBodyLineLimit: Int = 2
+    static let wsChipCornerRadius: CGFloat = 4
+    static let wsChipPaddingVertical: CGFloat = 3
+    static let wsChipPaddingHorizontal: CGFloat = 5
+    static let footerButtonHeight: CGFloat = 44
+    static let footerButtonCornerRadius: CGFloat = 12
+    static let minimumHitTarget: CGFloat = 44
+
+    // MARK: - Request Overview: behavioral constants — request-overview-tokens.md §8
+
+    /// Single live-tick period for the whole overview screen (§10, F1) — the hoisted
+    /// `TimelineView` in `AtlantisTrafficDetailView` drives the band, the timing card,
+    /// and (for `.websocket`) the WebSocket panel's counts/bytes/sparkline off this one
+    /// clock, satisfying the ≤10 Hz count bound and the ≤1 Hz sparkline bound.
+    static let elapsedTickInterval: TimeInterval = 1
 }
