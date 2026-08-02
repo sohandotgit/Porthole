@@ -204,7 +204,7 @@ private struct _Representable: UIViewRepresentable {
             let digitCount = String(lineStarts.count).count
             if digitCount != lastGutterDigitCount {
                 lastGutterDigitCount = digitCount
-                let digitWidth = (String(repeating: "0", count: max(digitCount, 1)) as NSString)
+                let digitWidth = ("0" as NSString)
                     .size(withAttributes: [.font: AtlantisSyntaxTheme.gutterFont]).width
                 gutterWidth = atlantisGutterWidth(digitCount: digitCount, digitWidth: digitWidth)
             }
@@ -625,7 +625,7 @@ private struct _Representable: NSViewRepresentable {
             let digitCount = String(lineStarts.count).count
             if digitCount != lastGutterDigitCount {
                 lastGutterDigitCount = digitCount
-                let digitWidth = (String(repeating: "0", count: max(digitCount, 1)) as NSString)
+                let digitWidth = ("0" as NSString)
                     .size(withAttributes: [.font: AtlantisSyntaxTheme.gutterFont]).width
                 gutterWidth = atlantisGutterWidth(digitCount: digitCount, digitWidth: digitWidth)
             }
