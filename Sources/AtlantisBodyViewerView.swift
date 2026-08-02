@@ -22,10 +22,13 @@ enum AtlantisViewerSettings {
     static var autoRenderLimitBytes: Int = 65_536
 }
 
-/// The once-built, off-main-thread output for the current `(mode, asciiVisible)`
-/// (perf contract rule 1/2): a fully token-colored string plus the `lineStarts`
-/// table the gutter and stats line share.
-private struct AtlantisBodyBuilt {
+/// Off-main-thread intermediate for the current `(mode, asciiVisible)` build —
+/// full text, its once-built fully token-colored attributed form, the
+/// `lineStarts` table the gutter and stats line share, and hex divider
+/// offsets. Chunked into an `AtlantisBodyStream` for progressive display
+/// (docs/plan-progressive-body-render.md Part 1).
+private struct AtlantisBodyStreamPrepared {
+    let text: String
     let attributed: NSAttributedString
     let lineStarts: [Int]
     /// Hex-mode column divider x-offsets (offset|bytes, bytes|ASCII), relative to
@@ -40,13 +43,20 @@ private struct AtlantisBodyBuildKey: Hashable {
     let asciiVisible: Bool
 }
 
-/// `.task(id:)` change signal for `rebuildIfNeeded` — a superset of
+/// `.task(id:)` change signal for `streamIfNeeded` — a superset of
 /// `AtlantisBodyBuildKey` (the cache key) that also re-fires the build task when
-/// classification finishes landing or Dynamic Type changes.
+/// classification finishes landing, gating changes, or Dynamic Type changes.
+///
+/// Must include `isGated`: without it, classification landing while gated
+/// fires this task once, which hits its own `guard !isGated` and clears
+/// `stream` to nil — then revealing the body (`revealed = true`) changes only
+/// `isGated`, which this key used to omit, so the task never re-fired and the
+/// canvas stayed permanently blank (Part 0 root-cause fix).
 private struct AtlantisBodyRebuildKey: Equatable {
     let mode: AtlantisBodyMode
     let asciiVisible: Bool
     let isClassifying: Bool
+    let isGated: Bool
     let sizeCategory: String
 }
 
@@ -74,8 +84,8 @@ struct AtlantisBodyViewerView: View {
     @State private var currentMatchIndex = 0
     @State private var scrollToken = 0
     @State private var copiedChip: AtlantisBodyChip?
-    @State private var built: AtlantisBodyBuilt?
-    @State private var builtCache: [AtlantisBodyBuildKey: AtlantisBodyBuilt] = [:]
+    @State private var stream: AtlantisBodyStream?
+    @State private var builtCache: [AtlantisBodyBuildKey: AtlantisBodyStream] = [:]
     @State private var searchTask: Task<Void, Never>?
     @State private var copyResetTask: Task<Void, Never>?
     @State private var imageScale: CGFloat = 1
@@ -128,7 +138,7 @@ struct AtlantisBodyViewerView: View {
         classification = result
         isClassifying = false
         builtCache = [:]
-        built = nil
+        stream = nil
         let options = AtlantisBodyMode.options(for: result.kind)
         mode = options.defaultMode ?? .pretty
     }
@@ -162,7 +172,9 @@ struct AtlantisBodyViewerView: View {
         classification.rawText != nil ? classification.rawLineCount : classification.binaryLossyLineCount
     }
 
-    /// The text currently on screen — what Copy copies (design §5.3).
+    /// The full text for the current mode — what Copy copies (design §5.3).
+    /// Always the whole payload, never the streamed-so-far prefix, even while
+    /// `stream` is still loading.
     private var currentDisplayText: String {
         switch mode {
         case .pretty: return classification.prettyText ?? ""
@@ -170,12 +182,22 @@ struct AtlantisBodyViewerView: View {
         case .text: return classification.rawText ?? ""
         case .hex:
             // The hex dump for the current `(mode, asciiVisible)` is already
-            // built off-main by `rebuildIfNeeded` — reuse it rather than
-            // re-running `AtlantisHexDump.build` synchronously here on every
-            // access (Copy, search recompute) (B5-3).
-            return built?.attributed.string ?? ""
+            // built off-main by `streamIfNeeded` — reuse its full text rather
+            // than re-running `AtlantisHexDump.build` synchronously here on
+            // every access (Copy, search recompute) (B5-3).
+            return stream?.fullText ?? ""
         case .image: return ""
         }
+    }
+
+    /// The text search scoping should read: while `stream` is still loading,
+    /// only what has actually been appended to `textStorage` so far — reading
+    /// the full text here would produce match ranges TextKit can't yet locate,
+    /// and stepping to one would scroll to a range that doesn't exist in the
+    /// canvas yet (docs/plan-progressive-body-render.md Part 3).
+    private var searchScopedText: String {
+        if let stream = stream, !stream.isComplete { return stream.loadedText }
+        return currentDisplayText
     }
 
     private var statsLineText: String {
@@ -238,9 +260,9 @@ struct AtlantisBodyViewerView: View {
         .task(id: data) {
             await classifyIfNeeded()
         }
-        .task(id: AtlantisBodyRebuildKey(mode: mode, asciiVisible: asciiVisible,
-                                          isClassifying: isClassifying, sizeCategory: sizeCategoryToken)) {
-            await rebuildIfNeeded()
+        .task(id: AtlantisBodyRebuildKey(mode: mode, asciiVisible: asciiVisible, isClassifying: isClassifying,
+                                          isGated: isGated, sizeCategory: sizeCategoryToken)) {
+            await streamIfNeeded()
         }
         .onChange(of: query) { newValue in
             searchTask?.cancel()
@@ -299,6 +321,9 @@ struct AtlantisBodyViewerView: View {
                     controlStrip
                     if mode.showsSearchRow {
                         searchRow
+                    }
+                    if canvasState == .streaming {
+                        AtlantisBodyStreamBanner(loadedUTF16: stream?.loadedUTF16 ?? 0, totalUTF16: stream?.totalUTF16 ?? 0)
                     }
                     canvasCard
                 }
@@ -394,12 +419,28 @@ struct AtlantisBodyViewerView: View {
     }
 
     private func recomputeMatches() {
-        matches = AtlantisBodySearch.nsMatchRanges(in: currentDisplayText, query: debouncedQuery)
+        matches = AtlantisBodySearch.nsMatchRanges(in: searchScopedText, query: debouncedQuery)
         currentMatchIndex = 0
         scrollToken += 1
     }
 
     // MARK: - Canvas
+
+    /// Canvas state machine (docs/plan-progressive-body-render.md Part 3),
+    /// replacing the old `built == nil` blank-forever branch.
+    private enum AtlantisBodyCanvasState {
+        case idle          // gated / empty / classifying — canvasCard isn't reached for these
+        case preparing     // build started, chunk 0 not in yet
+        case streaming     // chunk 0..n applied, incomplete
+        case complete
+    }
+
+    private var canvasState: AtlantisBodyCanvasState {
+        guard !isGated, kind != .empty, !isClassifying else { return .idle }
+        guard let stream = stream else { return .preparing }
+        if stream.isComplete { return .complete }
+        return stream.version == 0 ? .preparing : .streaming
+    }
 
     @ViewBuilder
     private var canvasCard: some View {
@@ -408,34 +449,54 @@ struct AtlantisBodyViewerView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(AtlantisSyntaxTheme.cardFill))
                 .cornerRadius(AtlantisSyntaxTheme.cardCornerRadius)
-        } else if let built = built {
-            let currentRange = matches.indices.contains(currentMatchIndex) ? matches[currentMatchIndex] : nil
-            AtlantisCodeTextView(attributed: built.attributed, lineStarts: built.lineStarts,
-                                  matchRanges: matches, currentMatchRange: currentRange,
-                                  wrapEnabled: mode == .hex ? false : wrapEnabled,
-                                  showsLineNumbers: mode == .hex ? false : lineNumbersOn, scrollToken: scrollToken,
-                                  hexDividerOffsets: built.hexDividerOffsets)
-                .background(Color(AtlantisSyntaxTheme.cardFill))
-                .cornerRadius(AtlantisSyntaxTheme.cardCornerRadius)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            Color(AtlantisSyntaxTheme.cardFill)
-                .cornerRadius(AtlantisSyntaxTheme.cardCornerRadius)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            switch canvasState {
+            case .preparing, .idle:
+                preparingCard
+            case .streaming, .complete:
+                if let stream = stream {
+                    let currentRange = matches.indices.contains(currentMatchIndex) ? matches[currentMatchIndex] : nil
+                    AtlantisCodeTextView(stream: stream, version: stream.version,
+                                          matchRanges: matches, currentMatchRange: currentRange,
+                                          wrapEnabled: mode == .hex ? false : wrapEnabled,
+                                          showsLineNumbers: mode == .hex ? false : lineNumbersOn,
+                                          scrollToken: scrollToken)
+                        .background(Color(AtlantisSyntaxTheme.cardFill))
+                        .cornerRadius(AtlantisSyntaxTheme.cardCornerRadius)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    preparingCard
+                }
+            }
         }
+    }
+
+    /// Spinner + byte count, centered in the card — shown while the build has
+    /// started but no chunk has landed yet (design intent: something
+    /// immediately visible other than a blank rectangle).
+    private var preparingCard: some View {
+        VStack(spacing: AtlantisSyntaxTheme.preparingStackGap) {
+            ProgressView()
+            Text("Rendering \(AtlantisFormat.bytes(classification.byteCount))…")
+                .font(Font(AtlantisSyntaxTheme.statsFont))
+                .foregroundColor(Color(AtlantisSyntaxTheme.labelSecondary))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(AtlantisSyntaxTheme.cardFill))
+        .cornerRadius(AtlantisSyntaxTheme.cardCornerRadius)
     }
 
     /// Off-main, cached per `(mode, asciiVisible)` (perf contract rule 1/9a) —
     /// text and dump production happen entirely inside the detached task, so hex
     /// mode never builds the dump on the main thread, and never twice (B5-3).
-    /// `builtCache` means toggling back to an already-built mode/pane combo is
-    /// free (B5-4).
+    /// `builtCache` means toggling back to an already-streamed mode/pane combo
+    /// is instant, served from the completed stream with no re-stream (B5-4).
     @MainActor
-    private func rebuildIfNeeded() async {
-        guard !isGated, kind != .empty, mode != .image, !isClassifying else { built = nil; return }
+    private func streamIfNeeded() async {
+        guard !isGated, kind != .empty, mode != .image, !isClassifying else { stream = nil; return }
         let key = AtlantisBodyBuildKey(mode: mode, asciiVisible: asciiVisible)
         if let cached = builtCache[key] {
-            built = cached
+            stream = cached
             recomputeMatches()
             return
         }
@@ -449,13 +510,14 @@ struct AtlantisBodyViewerView: View {
         let fallbackRawText = { String(decoding: data, as: UTF8.self) }
         let wordWrap = kind.wrapMode == .word
 
-        let result: AtlantisBodyBuilt = await Task.detached(priority: .userInitiated) {
+        let prepared: AtlantisBodyStreamPrepared = await Task.detached(priority: .userInitiated) {
             if mode == .hex {
                 let dump = AtlantisHexDump.build(data, asciiVisible: ascii)
                 let lineStarts = AtlantisSyntaxHighlighter.lineStarts(in: dump.text)
                 let attributed = AtlantisBodyViewerView.buildHexAttributedString(text: dump.text, tokens: dump.tokens)
                 let dividerOffsets = AtlantisBodyViewerView.hexDividerOffsets(asciiVisible: ascii)
-                return AtlantisBodyBuilt(attributed: attributed, lineStarts: lineStarts, hexDividerOffsets: dividerOffsets)
+                return AtlantisBodyStreamPrepared(text: dump.text, attributed: attributed, lineStarts: lineStarts,
+                                                   hexDividerOffsets: dividerOffsets)
             }
 
             let text: String
@@ -482,11 +544,27 @@ struct AtlantisBodyViewerView: View {
             let attributed = AtlantisSyntaxHighlighter.attributedString(text: text, tokens: tokens,
                                                                          font: AtlantisSyntaxTheme.canvasFont,
                                                                          paragraphStyle: paragraph)
-            return AtlantisBodyBuilt(attributed: attributed, lineStarts: lineStarts, hexDividerOffsets: [])
+            return AtlantisBodyStreamPrepared(text: text, attributed: attributed, lineStarts: lineStarts, hexDividerOffsets: [])
         }.value
-        guard !Task.isCancelled else { return }
-        built = result
-        builtCache[key] = result
+        guard !Task.isCancelled else { stream = nil; return }
+
+        let newStream = AtlantisBodyStream(fullText: prepared.text, totalUTF16: prepared.attributed.length,
+                                            hexDividerOffsets: prepared.hexDividerOffsets)
+        stream = newStream
+        recomputeMatches()
+
+        let chunks = AtlantisBodyStream.makeChunks(attributed: prepared.attributed, lineStarts: prepared.lineStarts)
+        for (index, chunk) in chunks.enumerated() {
+            guard !Task.isCancelled else { stream = nil; return }
+            newStream.append(chunk)
+            recomputeMatches()
+            if index < chunks.count - 1 {
+                try? await Task.sleep(nanoseconds: AtlantisSyntaxTheme.streamYieldNanoseconds)
+            }
+        }
+        guard !Task.isCancelled else { stream = nil; return }
+        newStream.markComplete()
+        builtCache[key] = newStream
         recomputeMatches()
     }
 
@@ -846,6 +924,35 @@ private struct AtlantisBodyUTF8Banner: View {
                 .padding(.top, 1)
                 .fixedSize()
             Text(AtlantisBodyBanner.utf8Text(invalidByteCount: invalidByteCount, firstInvalidOffset: firstInvalidOffset))
+                .font(Font(AtlantisSyntaxTheme.bannerFont))
+                .foregroundColor(Color(AtlantisSyntaxTheme.bannerText))
+        }
+        .padding(.vertical, AtlantisSyntaxTheme.bannerPaddingVertical)
+        .padding(.horizontal, AtlantisSyntaxTheme.bannerPaddingHorizontal)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(AtlantisSyntaxTheme.bannerFill))
+        .cornerRadius(AtlantisSyntaxTheme.bannerCornerRadius)
+    }
+}
+
+// MARK: - Progressive-render banner
+
+/// Shown between the search row and the canvas card while a stream is
+/// mid-flight (docs/plan-progressive-body-render.md Part 3) — mirrors
+/// `AtlantisBodyUTF8Banner`'s styling with a small spinner in place of the
+/// exclamation glyph. `loadedUTF16`/`totalUTF16` are UTF-16 code-unit counts,
+/// not bytes — close enough to the payload's byte count for mostly-ASCII
+/// bodies (JSON/XML/text) to read as a meaningful progress figure.
+@available(iOS 15.0, macOS 12.0, *)
+private struct AtlantisBodyStreamBanner: View {
+    let loadedUTF16: Int
+    let totalUTF16: Int
+
+    var body: some View {
+        HStack(alignment: .center, spacing: AtlantisSyntaxTheme.bannerGap) {
+            ProgressView()
+                .controlSize(.small)
+            Text("Loading — \(AtlantisFormat.bytes(loadedUTF16)) of \(AtlantisFormat.bytes(totalUTF16)) · search covers loaded text only")
                 .font(Font(AtlantisSyntaxTheme.bannerFont))
                 .foregroundColor(Color(AtlantisSyntaxTheme.bannerText))
         }

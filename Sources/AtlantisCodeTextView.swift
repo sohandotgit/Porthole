@@ -19,8 +19,12 @@ import Foundation
 /// stats line share (design §4/§6.1).
 @available(iOS 15.0, macOS 12.0, *)
 struct AtlantisCodeTextView: View {
-    let attributed: NSAttributedString
-    let lineStarts: [Int]
+    /// The incrementally-grown render output (Part 1). `version` is the
+    /// change signal SwiftUI diffs on; the view appends only the chunks
+    /// between its last-applied version and this one (Part 2) — never a full
+    /// `textStorage` replace after the stream's first chunk lands.
+    let stream: AtlantisBodyStream
+    let version: Int
     var matchRanges: [NSRange] = []
     var currentMatchRange: NSRange? = nil
     /// `true` = wrapping (line-break style already baked into `attributed`'s
@@ -32,15 +36,11 @@ struct AtlantisCodeTextView: View {
     /// Bump to re-scroll to `currentMatchRange`, one third from the top of the
     /// viewport (design §6.1) — the token, not the range, is the change signal.
     var scrollToken: Int = 0
-    /// Hex-mode column divider x-offsets, relative to `canvasInset` — empty for
-    /// every other mode (B-5, design §6.3).
-    var hexDividerOffsets: [CGFloat] = []
 
     var body: some View {
-        _Representable(attributed: attributed, lineStarts: lineStarts, matchRanges: matchRanges,
+        _Representable(stream: stream, version: version, matchRanges: matchRanges,
                         currentMatchRange: currentMatchRange, wrapEnabled: wrapEnabled,
-                        showsLineNumbers: showsLineNumbers, scrollToken: scrollToken,
-                        hexDividerOffsets: hexDividerOffsets)
+                        showsLineNumbers: showsLineNumbers, scrollToken: scrollToken)
     }
 }
 
@@ -72,14 +72,13 @@ import UIKit
 
 @available(iOS 15.0, *)
 private struct _Representable: UIViewRepresentable {
-    let attributed: NSAttributedString
-    let lineStarts: [Int]
+    let stream: AtlantisBodyStream
+    let version: Int
     var matchRanges: [NSRange]
     var currentMatchRange: NSRange?
     var wrapEnabled: Bool
     var showsLineNumbers: Bool
     var scrollToken: Int
-    var hexDividerOffsets: [CGFloat]
 
     func makeUIView(context: Context) -> UIView {
         let coordinator = context.coordinator
@@ -126,14 +125,32 @@ private struct _Representable: UIViewRepresentable {
         let coordinator = context.coordinator
         guard let textView = coordinator.textView else { return }
 
-        coordinator.lineStarts = lineStarts
-
-        if coordinator.lastAttributed !== attributed {
-            coordinator.lastAttributed = attributed
-            coordinator.baseAttributed = attributed
-            textView.textStorage.setAttributedString(attributed)
+        if coordinator.appliedStream !== stream {
+            coordinator.appliedStream = stream
+            coordinator.appliedVersion = 0
+            coordinator.baseAttributed = NSMutableAttributedString()
+            coordinator.lineStarts = []
+            textView.textStorage.setAttributedString(NSAttributedString())
             coordinator.appliedMatchRanges = []
             coordinator.appliedCurrentRange = nil
+        }
+
+        // Version-delta append (Part 2) — only the chunks not yet applied are
+        // appended to `textStorage`; never a full replace after the first
+        // chunk lands (O(n) total across a stream, not O(n²)).
+        if version > coordinator.appliedVersion {
+            let storage = textView.textStorage
+            let base = coordinator.baseAttributed ?? NSMutableAttributedString()
+            storage.beginEditing()
+            for i in coordinator.appliedVersion..<version where i < stream.chunks.count {
+                let chunk = stream.chunks[i]
+                storage.append(chunk.attributed)
+                base.append(chunk.attributed)
+                coordinator.lineStarts.append(contentsOf: chunk.lineStarts)
+            }
+            storage.endEditing()
+            coordinator.baseAttributed = base
+            coordinator.appliedVersion = version
         }
 
         if coordinator.lastWrapEnabled != wrapEnabled {
@@ -142,11 +159,11 @@ private struct _Representable: UIViewRepresentable {
         }
 
         applySearchHighlight(textView, matchRanges: matchRanges, currentMatchRange: currentMatchRange,
-                              base: coordinator.baseAttributed ?? attributed, coordinator: coordinator)
+                              base: coordinator.baseAttributed ?? NSAttributedString(), coordinator: coordinator)
 
         coordinator.currentMatchRange = currentMatchRange
         coordinator.showsLineNumbers = showsLineNumbers
-        coordinator.hexDividerOffsets = hexDividerOffsets
+        coordinator.hexDividerOffsets = stream.hexDividerOffsets
         coordinator.relayout()
 
         if coordinator.lastScrollToken != scrollToken {
@@ -175,8 +192,9 @@ private struct _Representable: UIViewRepresentable {
         weak var overlayView: AtlantisMatchOverlayView?
         weak var container: UIView?
 
-        var lastAttributed: NSAttributedString?
-        var baseAttributed: NSAttributedString?
+        var appliedStream: AtlantisBodyStream?
+        var appliedVersion = 0
+        var baseAttributed: NSMutableAttributedString?
         var appliedMatchRanges: [NSRange] = []
         var appliedCurrentRange: NSRange?
         var currentMatchRange: NSRange?
@@ -485,14 +503,13 @@ import AppKit
 
 @available(macOS 12.0, *)
 private struct _Representable: NSViewRepresentable {
-    let attributed: NSAttributedString
-    let lineStarts: [Int]
+    let stream: AtlantisBodyStream
+    let version: Int
     var matchRanges: [NSRange]
     var currentMatchRange: NSRange?
     var wrapEnabled: Bool
     var showsLineNumbers: Bool
     var scrollToken: Int
-    var hexDividerOffsets: [CGFloat]
 
     func makeNSView(context: Context) -> NSView {
         let coordinator = context.coordinator
@@ -545,14 +562,28 @@ private struct _Representable: NSViewRepresentable {
         guard let textView = coordinator.textView,
               let storage = textView.textStorage else { return }
 
-        coordinator.lineStarts = lineStarts
-
-        if coordinator.lastAttributed !== attributed {
-            coordinator.lastAttributed = attributed
-            coordinator.baseAttributed = attributed
-            storage.setAttributedString(attributed)
+        if coordinator.appliedStream !== stream {
+            coordinator.appliedStream = stream
+            coordinator.appliedVersion = 0
+            coordinator.baseAttributed = NSMutableAttributedString()
+            coordinator.lineStarts = []
+            storage.setAttributedString(NSAttributedString())
             coordinator.appliedMatchRanges = []
             coordinator.appliedCurrentRange = nil
+        }
+
+        if version > coordinator.appliedVersion {
+            let base = coordinator.baseAttributed ?? NSMutableAttributedString()
+            storage.beginEditing()
+            for i in coordinator.appliedVersion..<version where i < stream.chunks.count {
+                let chunk = stream.chunks[i]
+                storage.append(chunk.attributed)
+                base.append(chunk.attributed)
+                coordinator.lineStarts.append(contentsOf: chunk.lineStarts)
+            }
+            storage.endEditing()
+            coordinator.baseAttributed = base
+            coordinator.appliedVersion = version
         }
 
         if coordinator.lastWrapEnabled != wrapEnabled {
@@ -561,11 +592,11 @@ private struct _Representable: NSViewRepresentable {
         }
 
         applySearchHighlight(textView, matchRanges: matchRanges, currentMatchRange: currentMatchRange,
-                              base: coordinator.baseAttributed ?? attributed, coordinator: coordinator)
+                              base: coordinator.baseAttributed ?? NSAttributedString(), coordinator: coordinator)
 
         coordinator.currentMatchRange = currentMatchRange
         coordinator.showsLineNumbers = showsLineNumbers
-        coordinator.hexDividerOffsets = hexDividerOffsets
+        coordinator.hexDividerOffsets = stream.hexDividerOffsets
         coordinator.relayout()
 
         if coordinator.lastScrollToken != scrollToken, let scrollView = coordinator.scrollView {
@@ -598,8 +629,9 @@ private struct _Representable: NSViewRepresentable {
         weak var overlayView: AtlantisMatchOverlayView?
         weak var container: NSView?
 
-        var lastAttributed: NSAttributedString?
-        var baseAttributed: NSAttributedString?
+        var appliedStream: AtlantisBodyStream?
+        var appliedVersion = 0
+        var baseAttributed: NSMutableAttributedString?
         var appliedMatchRanges: [NSRange] = []
         var appliedCurrentRange: NSRange?
         var currentMatchRange: NSRange?

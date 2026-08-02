@@ -359,4 +359,17 @@ enum AtlantisSyntaxTheme {
     static let copyConfirmationDuration: Double = 1.2
     static let imageZoomMin: CGFloat = 1
     static let imageZoomMax: CGFloat = 6
+
+    // MARK: - Progressive body streaming — docs/plan-progressive-body-render.md
+
+    /// First chunk is capped smaller than the steady-state chunk size so
+    /// something is on screen in one frame.
+    static let streamFirstChunkMaxLines = 400
+    static let streamChunkMaxLines = 2_000
+    static let streamChunkMaxUTF16 = 64 * 1_024
+    /// One-runloop-turn gap between chunk appends so the first chunk paints
+    /// and the UI stays responsive.
+    static let streamYieldNanoseconds: UInt64 = 1_000_000
+    static let preparingStackGap: CGFloat = 10
+    static let preparingGlyphScale: CGFloat = 1.2
 }
