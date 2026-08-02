@@ -19,7 +19,6 @@ import AppKit
 /// a bottom fade when clipped. Tapping anywhere pushes `AtlantisBodyViewerView`.
 /// Classification and tokenization run on the 2 KB slice only — never the whole
 /// payload — so `List` cell cost stays bounded.
-@available(iOS 15.0, macOS 12.0, *)
 struct AtlantisBodyPreviewCard: View {
     static let previewByteLimit = AtlantisSyntaxTheme.previewByteBudget
     static let previewLineLimit = AtlantisSyntaxTheme.previewMaxLines
@@ -254,7 +253,6 @@ struct AtlantisBodyPreviewCard: View {
 /// fixed, non-scrolling stack of `Text` numbers rather than the canvas
 /// gutter's `CATiledLayer`-style redraw, since the preview is capped at
 /// `previewMaxLines` rows (N-1).
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisStaticGutterText: View {
     let lineCount: Int
 
@@ -284,7 +282,6 @@ private struct AtlantisStaticGutterText: View {
 /// manager cost is exactly what a `List` of preview cards must avoid. Fixed,
 /// small height only — never the document-height concern `draw(_:)` raises for
 /// the full canvas (B4-2).
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisStaticAttributedText: View {
     let attributed: NSAttributedString
 
@@ -294,7 +291,6 @@ private struct AtlantisStaticAttributedText: View {
 }
 
 #if os(iOS) || targetEnvironment(macCatalyst)
-@available(iOS 15.0, *)
 private struct _Representable: UIViewRepresentable {
     let attributed: NSAttributedString
 
@@ -328,7 +324,6 @@ private final class AtlantisStaticTextRenderView: UIView {
     }
 }
 #elseif os(macOS)
-@available(macOS 12.0, *)
 private struct _Representable: NSViewRepresentable {
     let attributed: NSAttributedString
 

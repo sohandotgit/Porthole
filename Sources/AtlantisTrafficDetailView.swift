@@ -27,7 +27,6 @@ private let atlantisDateTimeFormatter: DateFormatter = {
 }()
 
 /// Highlights `query` matches in `text` with a yellow background.
-@available(iOS 15.0, macOS 12.0, *)
 private func atlantisHighlighted(_ text: String, query: String) -> AttributedString {
     var attributed = AttributedString(text)
     let ranges = AtlantisBodySearch.matchRanges(in: text, query: query)
@@ -39,7 +38,6 @@ private func atlantisHighlighted(_ text: String, query: String) -> AttributedStr
     return attributed
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisHeadersSectionView: View {
     let title: String
     let headers: [Header]
@@ -72,7 +70,6 @@ private struct AtlantisHeadersSectionView: View {
     }
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisHeadersDetailView: View {
     let title: String
     let headers: [Header]
@@ -88,7 +85,6 @@ private struct AtlantisHeadersDetailView: View {
     }
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisOverviewRow: View {
     let label: String
     let value: String
@@ -107,7 +103,6 @@ private struct AtlantisOverviewRow: View {
     }
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisMessageDetailView: View {
     let message: WebsocketMessagePackage
 
@@ -124,7 +119,6 @@ private struct AtlantisMessageDetailView: View {
     }
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisMessageRowView: View {
     let message: WebsocketMessagePackage
 
@@ -179,7 +173,6 @@ private struct AtlantisMessageRowView: View {
 
 /// Detail view for a single `TrafficPackage` — overview, headers, content-type-aware
 /// bodies, copy/share actions, and (for WS/SSE) the message list.
-@available(iOS 15.0, macOS 12.0, *)
 public struct AtlantisTrafficDetailView: View {
 
     private let package: TrafficPackage

@@ -15,7 +15,6 @@ import Combine
 /// Line-aligned incremental render output for one `(mode, asciiVisible)` body
 /// build. Chunk boundaries always land on `\n` — never split a line, or the
 /// gutter's `lineStarts` binary search and the wrap geometry both go wrong.
-@available(iOS 15.0, macOS 12.0, *)
 @MainActor
 final class AtlantisBodyStream: ObservableObject {
     struct Chunk {

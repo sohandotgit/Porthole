@@ -6,7 +6,6 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
-@available(iOS 15.0, macOS 12.0, *)
 enum AtlantisPalette {
     static func statusColor(statusCode: Int?, hasError: Bool) -> Color {
         if hasError { return .red }
@@ -51,7 +50,6 @@ struct AtlantisPathHost {
     }
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 struct AtlantisTrafficRowView: View {
     let package: TrafficPackage
 
@@ -113,7 +111,6 @@ struct AtlantisTrafficRowView: View {
 
 /// Observable list of captured traffic — filterable, pausable, exportable. The host
 /// embeds this inside its own `NavigationView`/`NavigationStack`.
-@available(iOS 15.0, macOS 12.0, *)
 public struct AtlantisTrafficListView: View {
 
     @ObservedObject private var store: AtlantisTrafficStore

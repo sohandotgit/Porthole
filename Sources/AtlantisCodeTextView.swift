@@ -17,7 +17,6 @@ import Foundation
 /// mutates attributes over `matchRanges`/`currentMatchRange`, clearing exactly the
 /// ranges it previously set. `lineStarts` is the same table the gutter and the
 /// stats line share (design §4/§6.1).
-@available(iOS 15.0, macOS 12.0, *)
 struct AtlantisCodeTextView: View {
     /// The incrementally-grown render output (Part 1). `version` is the
     /// change signal SwiftUI diffs on; the view appends only the chunks
@@ -70,7 +69,6 @@ private func atlantisGutterWidth(digitCount: Int, digitWidth: CGFloat) -> CGFloa
 #if os(iOS) || targetEnvironment(macCatalyst)
 import UIKit
 
-@available(iOS 15.0, *)
 private struct _Representable: UIViewRepresentable {
     let stream: AtlantisBodyStream
     let version: Int
@@ -85,14 +83,9 @@ private struct _Representable: UIViewRepresentable {
         let container = AtlantisCodeContainerView()
         container.layoutHandler = { [weak coordinator] in coordinator?.relayout() }
 
-        let textView: UITextView
-        if #available(iOS 16.0, *) {
-            // TextKit 1 pinned — the gutter and ring overlay both use
-            // NSLayoutManager fragment geometry (perf contract rule 6).
-            textView = UITextView(usingTextLayoutManager: false)
-        } else {
-            textView = UITextView()
-        }
+        // TextKit 1 pinned — the gutter and ring overlay both use
+        // NSLayoutManager fragment geometry (perf contract rule 6).
+        let textView = UITextView(usingTextLayoutManager: false)
         let inset = AtlantisSyntaxTheme.canvasInset
         textView.isEditable = false
         textView.isScrollEnabled = true
@@ -447,7 +440,6 @@ private func scrollToMatch(_ range: NSRange, in tv: UITextView) {
     tv.setContentOffset(CGPoint(x: tv.contentOffset.x, y: targetY), animated: true)
 }
 
-@available(iOS 15.0, *)
 private func applySearchHighlight(_ tv: UITextView, matchRanges: [NSRange], currentMatchRange: NSRange?,
                                    base: NSAttributedString, coordinator: _Representable.Coordinator) {
     let matchesChanged = matchRanges != coordinator.appliedMatchRanges
@@ -501,7 +493,6 @@ private func applySearchHighlight(_ tv: UITextView, matchRanges: [NSRange], curr
 #elseif os(macOS)
 import AppKit
 
-@available(macOS 12.0, *)
 private struct _Representable: NSViewRepresentable {
     let stream: AtlantisBodyStream
     let version: Int
@@ -760,7 +751,6 @@ private final class AtlantisGutterView: NSView {
 
 /// Backed by three pinned `CAShapeLayer`s whose paths are reassigned on
 /// current-match change — never a `draw(_:)` override (B4-2, perf contract 10a).
-@available(macOS 11.0, *)
 private final class AtlantisMatchOverlayView: NSView {
     weak var nsTextView: NSTextView?
     var currentMatchRange: NSRange?
@@ -885,7 +875,6 @@ private func scrollToMatch(_ range: NSRange, in tv: NSTextView, scrollView: NSSc
     scrollView.reflectScrolledClipView(scrollView.contentView)
 }
 
-@available(macOS 12.0, *)
 private func applySearchHighlight(_ tv: NSTextView, matchRanges: [NSRange], currentMatchRange: NSRange?,
                                    base: NSAttributedString, coordinator: _Representable.Coordinator) {
     guard let storage = tv.textStorage else { return }

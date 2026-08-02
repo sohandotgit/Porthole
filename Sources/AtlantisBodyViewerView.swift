@@ -16,7 +16,6 @@ import AppKit
 /// `AtlantisViewerSettings.autoRenderLimitBytes` (design §6.2, tokens.md §9). No
 /// settings screen ships this session — this is the only knob, and it is read
 /// directly by the gate predicate and printed by the gate footnote.
-@available(iOS 15.0, macOS 12.0, *)
 enum AtlantisViewerSettings {
     @AppStorage("AtlantisViewerSettings.autoRenderLimitBytes")
     static var autoRenderLimitBytes: Int = 65_536
@@ -63,7 +62,6 @@ private struct AtlantisBodyRebuildKey: Equatable {
 /// The body viewer screen (design/body-viewer-ui-v2.md §2-§6): meta card, control
 /// strip, inline search row, canvas card, and the four states (rendered / gated /
 /// hex / empty). Composes `AtlantisCodeTextView` — never reimplements TextKit.
-@available(iOS 15.0, macOS 12.0, *)
 struct AtlantisBodyViewerView: View {
     let title: String
     let data: Data
@@ -707,7 +705,6 @@ private func atlantisImageSize(_ data: Data) -> CGSize {
 
 // MARK: - Meta card
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisBodyMetaCard: View {
     let kind: AtlantisBodyClassifiedKind
     let contentType: String?
@@ -760,7 +757,6 @@ private struct AtlantisBodyMetaCard: View {
 
 // MARK: - Segmented mode picker
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisBodySegmentedPicker: View {
     @Binding var mode: AtlantisBodyMode
     let options: [AtlantisBodyMode]
@@ -806,7 +802,6 @@ private struct AtlantisBodySegmentedPicker: View {
 
 // MARK: - Icon chip
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisBodyIconChip<Glyph: View>: View {
     let isActive: Bool
     let isCopied: Bool
@@ -844,7 +839,6 @@ private struct AtlantisBodyIconChip<Glyph: View>: View {
 
 // MARK: - Search row
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisBodySearchRow: View {
     @Binding var query: String
     let matchCount: Int
@@ -911,7 +905,6 @@ private struct AtlantisBodySearchRow: View {
 
 // MARK: - UTF-8 banner
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisBodyUTF8Banner: View {
     let invalidByteCount: Int
     let firstInvalidOffset: Int
@@ -943,7 +936,6 @@ private struct AtlantisBodyUTF8Banner: View {
 /// exclamation glyph. `loadedUTF16`/`totalUTF16` are UTF-16 code-unit counts,
 /// not bytes — close enough to the payload's byte count for mostly-ASCII
 /// bodies (JSON/XML/text) to read as a meaningful progress figure.
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisBodyStreamBanner: View {
     let loadedUTF16: Int
     let totalUTF16: Int
@@ -966,7 +958,6 @@ private struct AtlantisBodyStreamBanner: View {
 
 // MARK: - Empty state
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisBodyEmptyStateView: View {
     let method: String
     let side: AtlantisBodySide
@@ -996,7 +987,6 @@ private struct AtlantisBodyEmptyStateView: View {
 
 // MARK: - Image mode
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisBodyImageView: View {
     let data: Data
     @Binding var scale: CGFloat
@@ -1041,7 +1031,6 @@ private struct AtlantisBodyImageView: View {
     }
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 private struct AtlantisCheckerboard: View {
     var body: some View {
         Canvas { context, size in
