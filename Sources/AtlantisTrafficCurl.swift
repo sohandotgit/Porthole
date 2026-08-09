@@ -21,9 +21,9 @@ public extension TrafficPackage {
 
     /// Reproducible cURL for the request. Exact format pinned in design/viewer-api.md §3.
     func curlCommand() -> String {
-        var parts: [String] = ["curl -X \(request.method) '\(curlEscape(request.url))'"]
+        var parts: [String] = ["curl -X \(request.method) '\(curlEscape(request.url))'", "--compressed"]
 
-        for header in request.headers {
+        for header in request.headers where header.key.caseInsensitiveCompare("Accept-Encoding") != .orderedSame {
             parts.append("-H '\(curlEscape(header.key)): \(curlEscape(header.value))'")
         }
 

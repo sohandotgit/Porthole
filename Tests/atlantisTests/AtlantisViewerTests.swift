@@ -265,7 +265,11 @@ final class AtlantisCurlCommandTests: XCTestCase {
 
     func testGetNoHeadersNoBody() {
         let package = makePackage(method: "GET", url: "https://api.example.com/users?page=2", reqBody: nil)
-        XCTAssertEqual(package.curlCommand(), "curl -X GET 'https://api.example.com/users?page=2'")
+        let expected = """
+        curl -X GET 'https://api.example.com/users?page=2' \\
+          --compressed
+        """
+        XCTAssertEqual(package.curlCommand(), expected)
     }
 
     func testPostHeadersAndJSONBody() {
@@ -275,6 +279,7 @@ final class AtlantisCurlCommandTests: XCTestCase {
                                   reqHeaders: headers, reqBody: Data(#"{"name":"Ada","role":"admin"}"#.utf8))
         let expected = """
         curl -X POST 'https://api.example.com/users' \\
+          --compressed \\
           -H 'Content-Type: application/json' \\
           -H 'Authorization: Bearer abc123' \\
           --data-binary '{"name":"Ada","role":"admin"}'
@@ -287,6 +292,7 @@ final class AtlantisCurlCommandTests: XCTestCase {
         let package = makePackage(method: "GET", url: "https://x.test/", reqHeaders: headers, reqBody: nil)
         let expected = """
         curl -X GET 'https://x.test/' \\
+          --compressed \\
           -H 'X-Note: it'\\''s fine'
         """
         XCTAssertEqual(package.curlCommand(), expected)
@@ -299,8 +305,22 @@ final class AtlantisCurlCommandTests: XCTestCase {
                                   reqHeaders: headers, reqBody: Data([0x00, 0x01, 0x02]))
         let expected = """
         curl -X POST 'https://x.test/upload' \\
+          --compressed \\
           -H 'Content-Type: application/octet-stream' \\
           --data-binary "$(echo 'AAEC' | base64 --decode)"
+        """
+        XCTAssertEqual(package.curlCommand(), expected)
+    }
+
+    func testAcceptEncodingHeaderDroppedInFavorOfCompressedFlag() {
+        let headers = [Header(key: "Accept-Encoding", value: "gzip, deflate, br"),
+                       Header(key: "Accept", value: "*/*")]
+        let package = makePackage(method: "GET", url: "https://jsonplaceholder.typicode.com/posts/1",
+                                  reqHeaders: headers, reqBody: nil)
+        let expected = """
+        curl -X GET 'https://jsonplaceholder.typicode.com/posts/1' \\
+          --compressed \\
+          -H 'Accept: */*'
         """
         XCTAssertEqual(package.curlCommand(), expected)
     }
