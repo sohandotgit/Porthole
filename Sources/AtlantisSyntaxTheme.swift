@@ -84,6 +84,14 @@ enum AtlantisSyntaxTheme {
     static let hexBytes = pair(0x1C1C1E, 0xEBEBF5)
     static let hexAscii = pair(0x2E7D53, 0x7DD3A0)
 
+    // MARK: - JSON tree view (design_handoff_tree_view §Design Tokens)
+
+    /// Vertical ancestor-nesting guide lines — distinct from `syntaxPunctuation`
+    /// (used for the chevron and the colon), matching the design's separate
+    /// "chevron / guide line" token pair.
+    static let treeGuideLine = pair(0xD1D1D6, 0x3A3A3C)
+    static let treeCollapsedPreview = pair(0x8E8E93, 0x98989F)
+
     // MARK: - Search highlight — tokens.md §2
 
     static let matchBackground = pair(0xFFD60A, 0xFFD60A, lightAlpha: 0.42, darkAlpha: 0.28)
@@ -240,6 +248,8 @@ enum AtlantisSyntaxTheme {
     static var emptyBytesFont: PlatformFont { monospaced(15, weight: .regular) }
     static var navTitleFont: PlatformFont { system(17, weight: .semibold) }
     static var navButtonFont: PlatformFont { system(17, weight: .regular) }
+    static var treeKeyFont: PlatformFont { monospaced(13, weight: .semibold) }
+    static var treeValueFont: PlatformFont { monospaced(13, weight: .regular) }
 
     // MARK: - Metrics used by the theme (line box / hex kern)
 
@@ -324,6 +334,26 @@ enum AtlantisSyntaxTheme {
     static let wrapGlyphSize: CGFloat = 18
     static let copyGlyphSize: CGFloat = 17
     static let navEllipsisSize: CGFloat = 24
+
+    // MARK: - JSON tree view metrics (design_handoff_tree_view §Layout/§Spacing scale)
+
+    /// Indent step per nesting level; a row at `depth` is padded
+    /// `depth * treeIndentStep + treeIndentBase`, and its ancestor guide lines
+    /// sit at `level * treeIndentStep + treeGuideOffset` for each `level` in
+    /// `0..<depth`.
+    static let treeIndentStep: CGFloat = 18
+    static let treeIndentBase: CGFloat = 6
+    static let treeGuideOffset: CGFloat = 13
+    static let treeGuideWidth: CGFloat = 1
+    static let treeRowPaddingVertical: CGFloat = 4
+    static let treeRowPaddingHorizontal: CGFloat = 8
+    static let treeRowGap: CGFloat = 2
+    static let treeRowLineHeight: CGFloat = 20
+    static let treeChevronHitSize: CGFloat = 14
+    static let treeChevronGlyphSize: CGFloat = 8
+    static let treeCanvasPaddingVertical: CGFloat = 8
+    static let treeCanvasPaddingHorizontal: CGFloat = 4
+    static let treeToolbarGlyphSize: CGFloat = 15
 
     // MARK: - Canvas / gutter / hex measurements — tokens.md §8/§9
 

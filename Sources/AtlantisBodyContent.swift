@@ -370,11 +370,13 @@ enum AtlantisBodyChip: Equatable {
     case lineNumbers
     case copy
     case asciiPane
+    case expandCollapseAll
 }
 
 /// Body viewer mode (design §5.2) and its per-kind option matrix.
 enum AtlantisBodyMode: Hashable {
     case pretty
+    case tree
     case raw
     case hex
     case text
@@ -383,6 +385,7 @@ enum AtlantisBodyMode: Hashable {
     var label: String {
         switch self {
         case .pretty: return "Pretty"
+        case .tree: return "Tree"
         case .raw: return "Raw"
         case .hex: return "Hex"
         case .text: return "Text"
@@ -392,7 +395,7 @@ enum AtlantisBodyMode: Hashable {
 
     var showsSearchRow: Bool {
         switch self {
-        case .pretty, .raw, .text: return true
+        case .pretty, .tree, .raw, .text: return true
         case .hex, .image: return false
         }
     }
@@ -400,7 +403,9 @@ enum AtlantisBodyMode: Hashable {
     static func options(for kind: AtlantisBodyClassifiedKind)
         -> (options: [AtlantisBodyMode], defaultMode: AtlantisBodyMode?, disabled: Set<AtlantisBodyMode>, showsPicker: Bool) {
         switch kind {
-        case .json, .xml, .html, .form:
+        case .json:
+            return ([.pretty, .tree, .raw, .hex], .pretty, [], true)
+        case .xml, .html, .form:
             return ([.pretty, .raw, .hex], .pretty, [], true)
         case .text:
             return ([.text, .hex], .text, [], true)
@@ -416,6 +421,7 @@ enum AtlantisBodyMode: Hashable {
     static func chips(for mode: AtlantisBodyMode) -> [AtlantisBodyChip] {
         switch mode {
         case .pretty, .raw, .text: return [.wrap, .lineNumbers, .copy]
+        case .tree: return [.expandCollapseAll, .copy]
         case .hex: return [.asciiPane, .copy]
         case .image: return [.copy]
         }

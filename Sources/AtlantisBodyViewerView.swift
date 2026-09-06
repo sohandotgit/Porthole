@@ -59,6 +59,17 @@ private struct AtlantisBodyRebuildKey: Equatable {
     let sizeCategory: String
 }
 
+/// `.task(id:)` signal for the JSON tree build — re-fires on a new body, a
+/// mode switch into/out of `.tree`, classification landing, or the gate
+/// toggling, so `buildTreeIfNeeded` can both parse-once-per-body and
+/// recompute search state whenever tree mode becomes active again.
+private struct AtlantisTreeBuildKey: Equatable {
+    let data: Data
+    let mode: AtlantisBodyMode
+    let isGated: Bool
+    let isClassifying: Bool
+}
+
 /// The body viewer screen (design/body-viewer-ui-v2.md §2-§6): meta card, control
 /// strip, inline search row, canvas card, and the four states (rendered / gated /
 /// hex / empty). Composes `AtlantisCodeTextView` — never reimplements TextKit.
@@ -87,6 +98,12 @@ struct AtlantisBodyViewerView: View {
     @State private var searchTask: Task<Void, Never>?
     @State private var copyResetTask: Task<Void, Never>?
     @State private var imageScale: CGFloat = 1
+
+    @State private var jsonTreeRoot: AtlantisJSONValue?
+    @State private var treeExpandedPaths: Set<AtlantisJSONPath> = []
+    @State private var treeRows: [AtlantisJSONTreeRow] = []
+    @State private var treeMatches: [AtlantisJSONPath] = []
+    @State private var treeCurrentMatchIndex = 0
 
     /// `true` until the off-main classification for the current `data` has
     /// landed (B5-2). The init below only does an O(1) empty check — the real
@@ -137,6 +154,11 @@ struct AtlantisBodyViewerView: View {
         isClassifying = false
         builtCache = [:]
         stream = nil
+        jsonTreeRoot = nil
+        treeExpandedPaths = []
+        treeRows = []
+        treeMatches = []
+        treeCurrentMatchIndex = 0
         let options = AtlantisBodyMode.options(for: result.kind)
         mode = options.defaultMode ?? .pretty
     }
@@ -152,7 +174,7 @@ struct AtlantisBodyViewerView: View {
     /// an ungated multi-megabyte body — `.image` is included so a huge image
     /// body isn't decoded with no cap of any kind (B5-12).
     private var isGated: Bool {
-        guard mode == .pretty || mode == .raw || mode == .text || mode == .image else { return false }
+        guard mode == .pretty || mode == .tree || mode == .raw || mode == .text || mode == .image else { return false }
         return AtlantisBodyGate.isGated(byteCount: classification.byteCount,
                                          limit: AtlantisViewerSettings.autoRenderLimitBytes,
                                          revealed: revealed)
@@ -175,7 +197,7 @@ struct AtlantisBodyViewerView: View {
     /// `stream` is still loading.
     private var currentDisplayText: String {
         switch mode {
-        case .pretty: return classification.prettyText ?? ""
+        case .pretty, .tree: return classification.prettyText ?? ""
         case .raw: return rawModeText
         case .text: return classification.rawText ?? ""
         case .hex:
@@ -210,7 +232,7 @@ struct AtlantisBodyViewerView: View {
             return AtlantisBodyStats.statsLine(.gated(byteCount: classification.byteCount, lineCount: rawModeLineCount))
         }
         switch mode {
-        case .pretty:
+        case .pretty, .tree:
             return AtlantisBodyStats.statsLine(.pretty(byteCount: classification.byteCount, lineCount: classification.prettyLineCount))
         case .raw:
             return AtlantisBodyStats.statsLine(.raw(byteCount: classification.byteCount, lineCount: rawModeLineCount))
@@ -262,6 +284,9 @@ struct AtlantisBodyViewerView: View {
                                           isGated: isGated, sizeCategory: sizeCategoryToken)) {
             await streamIfNeeded()
         }
+        .task(id: AtlantisTreeBuildKey(data: data, mode: mode, isGated: isGated, isClassifying: isClassifying)) {
+            await buildTreeIfNeeded()
+        }
         .onChange(of: query) { newValue in
             searchTask?.cancel()
             searchTask = Task {
@@ -269,7 +294,11 @@ struct AtlantisBodyViewerView: View {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     debouncedQuery = newValue
-                    recomputeMatches()
+                    if mode == .tree {
+                        recomputeTreeMatches()
+                    } else {
+                        recomputeMatches()
+                    }
                 }
             }
         }
@@ -375,6 +404,12 @@ struct AtlantisBodyViewerView: View {
                 Image(systemName: "doc.on.doc")
                     .font(.system(size: AtlantisSyntaxTheme.copyGlyphSize, weight: .regular))
             } action: { performCopy() }
+        case .expandCollapseAll:
+            AtlantisBodyIconChip(isActive: false, isCopied: false,
+                                  help: "Expand/collapse all", accessibilityLabel: "Expand or collapse all nodes") {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: AtlantisSyntaxTheme.treeToolbarGlyphSize, weight: .regular))
+            } action: { toggleExpandCollapseAll() }
         }
     }
 
@@ -406,8 +441,13 @@ struct AtlantisBodyViewerView: View {
 
     @ViewBuilder
     private var searchRow: some View {
-        AtlantisBodySearchRow(query: $query, matchCount: matches.count, currentMatchIndex: currentMatchIndex,
-                               onPrev: { step(-1) }, onNext: { step(1) })
+        if mode == .tree {
+            AtlantisBodySearchRow(query: $query, matchCount: treeMatches.count, currentMatchIndex: treeCurrentMatchIndex,
+                                   onPrev: { stepTree(-1) }, onNext: { stepTree(1) })
+        } else {
+            AtlantisBodySearchRow(query: $query, matchCount: matches.count, currentMatchIndex: currentMatchIndex,
+                                   onPrev: { step(-1) }, onNext: { step(1) })
+        }
     }
 
     private func step(_ delta: Int) {
@@ -447,6 +487,17 @@ struct AtlantisBodyViewerView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(AtlantisSyntaxTheme.cardFill))
                 .cornerRadius(AtlantisSyntaxTheme.cardCornerRadius)
+        } else if mode == .tree {
+            if jsonTreeRoot != nil {
+                let currentMatch = treeMatches.indices.contains(treeCurrentMatchIndex) ? treeMatches[treeCurrentMatchIndex] : nil
+                AtlantisJSONTreeView(rows: treeRows, matchedPaths: Set(treeMatches), currentMatchPath: currentMatch,
+                                     scrollToken: scrollToken, onToggle: toggleTreeNode)
+                    .background(Color(AtlantisSyntaxTheme.cardFill))
+                    .cornerRadius(AtlantisSyntaxTheme.cardCornerRadius)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                preparingCard
+            }
         } else {
             switch canvasState {
             case .preparing, .idle:
@@ -491,7 +542,7 @@ struct AtlantisBodyViewerView: View {
     /// is instant, served from the completed stream with no re-stream (B5-4).
     @MainActor
     private func streamIfNeeded() async {
-        guard !isGated, kind != .empty, mode != .image, !isClassifying else { stream = nil; return }
+        guard !isGated, kind != .empty, mode != .image, mode != .tree, !isClassifying else { stream = nil; return }
         let key = AtlantisBodyBuildKey(mode: mode, asciiVisible: asciiVisible)
         if let cached = builtCache[key] {
             stream = cached
@@ -523,7 +574,7 @@ struct AtlantisBodyViewerView: View {
             case .pretty: text = prettyText ?? ""
             case .raw: text = rawText ?? fallbackRawText()
             case .text: text = rawText ?? ""
-            case .hex, .image: text = ""
+            case .hex, .image, .tree: text = ""
             }
 
             let lineStarts = AtlantisSyntaxHighlighter.lineStarts(in: text)
@@ -564,6 +615,73 @@ struct AtlantisBodyViewerView: View {
         newStream.markComplete()
         builtCache[key] = newStream
         recomputeMatches()
+    }
+
+    // MARK: - JSON tree
+
+    /// Parses `data` into an `AtlantisJSONValue` once per body (off-main) and
+    /// (re)computes search/expansion state whenever tree mode is entered —
+    /// cheap on an already-parsed tree, so re-running it on every mode
+    /// switch back into `.tree` is fine (B5-3-equivalent: never re-parse).
+    @MainActor
+    private func buildTreeIfNeeded() async {
+        guard mode == .tree, kind == .json, !isGated, !isClassifying else { return }
+        if jsonTreeRoot == nil {
+            let data = self.data
+            let parsed = await Task.detached(priority: .userInitiated) {
+                AtlantisJSONParser.parse(data)
+            }.value
+            guard !Task.isCancelled, let root = parsed else { return }
+            jsonTreeRoot = root
+            treeExpandedPaths = AtlantisJSONTree.defaultExpandedPaths(root: root)
+        }
+        recomputeTreeMatches()
+    }
+
+    private func rebuildTreeRows() {
+        guard let root = jsonTreeRoot else { treeRows = []; return }
+        treeRows = AtlantisJSONTree.rows(root: root, expanded: treeExpandedPaths)
+    }
+
+    private func toggleTreeNode(_ path: AtlantisJSONPath) {
+        if treeExpandedPaths.contains(path) {
+            treeExpandedPaths.remove(path)
+        } else {
+            treeExpandedPaths.insert(path)
+        }
+        rebuildTreeRows()
+    }
+
+    private func toggleExpandCollapseAll() {
+        guard let root = jsonTreeRoot else { return }
+        let all = AtlantisJSONTree.allExpandablePaths(root: root)
+        treeExpandedPaths = treeExpandedPaths.count >= all.count ? [] : all
+        rebuildTreeRows()
+    }
+
+    /// Recomputes tree search matches and auto-expands their ancestors
+    /// (design: "on match it should auto-expand ancestors of any match so
+    /// results are visible") — mirrors `recomputeMatches()`'s role for the
+    /// text canvas.
+    private func recomputeTreeMatches() {
+        guard let root = jsonTreeRoot else { treeMatches = []; return }
+        treeMatches = AtlantisJSONTree.matchingPaths(root: root, query: debouncedQuery)
+        treeCurrentMatchIndex = 0
+        if !treeMatches.isEmpty {
+            var expanded = treeExpandedPaths
+            for match in treeMatches {
+                for ancestor in AtlantisJSONTree.ancestors(of: match) { expanded.insert(ancestor) }
+            }
+            treeExpandedPaths = expanded
+        }
+        rebuildTreeRows()
+        scrollToken += 1
+    }
+
+    private func stepTree(_ delta: Int) {
+        guard !treeMatches.isEmpty else { return }
+        treeCurrentMatchIndex = (treeCurrentMatchIndex + delta + treeMatches.count) % treeMatches.count
+        scrollToken += 1
     }
 
     private nonisolated static func buildHexAttributedString(text: String, tokens: [AtlantisToken]) -> NSAttributedString {
