@@ -31,6 +31,91 @@
     .packet-grid { grid-template-columns:1fr; }
     .packet-field, .packet-field.narrow { grid-column:span 1; }
   }
+
+  .console{--panel:var(--code-bg);--ink:var(--fg);--muted:var(--dim);--line:var(--border);--res:var(--accent);
+    --req:oklch(.8 .11 80);--ws:oklch(.78 .09 300);--err:oklch(.72 .14 25);--screen:var(--bg)}
+  @media (prefers-color-scheme: light) { .console{--req:oklch(.52 .11 70);--ws:oklch(.5 .12 300);--err:oklch(.5 .15 25);--screen:#f8f6ee} }
+  .console ol,.console ul,.console p{margin:0;padding:0}
+  .console button{font-family:inherit}
+  .console *,.console *::before,.console *::after{box-sizing:border-box}
+  .dev-wrap *{margin:0;padding:0}
+  @media (prefers-reduced-motion:reduce){.row.in{animation:none}}
+
+.console{max-width:1000px;margin:0;border:1px solid var(--line);border-radius:0;background:var(--panel);text-align:left;overflow:hidden;--pw:clamp(140px,18vw,230px)}
+.console .pk{background:var(--panel)}
+.bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding:10px 10px 10px 18px;border-bottom:1px solid var(--line)}
+.state{display:inline-flex;align-items:center;gap:10px;font:500 13px/1 "SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace}
+.state i{width:8px;height:8px;border-radius:50%;background:var(--res);box-shadow:0 0 0 3px oklch(from var(--res) l c h/.25)}
+.state.off i{background:var(--muted);box-shadow:none}
+.state.off{color:var(--muted)}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+.tools button{min-height:40px;padding:0 14px;border-radius:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:13px;font-weight:500;cursor:pointer}
+.tools button:hover{border-color:var(--ink)}
+.tools button[aria-pressed="true"]{border-color:var(--req);color:var(--req)}
+.tools .pri{background:transparent;color:var(--res);border-color:var(--res)}
+.tools .pri:hover{background:var(--res);border-color:var(--res);color:oklch(.16 .006 250)}
+@media (pointer:coarse){.tools button{min-height:44px}}
+.console .net-in{padding:40px clamp(16px,4vw,48px)}
+.console figcaption{padding:12px 18px;border-top:1px solid var(--line);font:400 12px/1.5 "SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;color:var(--muted)}
+/* iPhone 14 Pro frame adapted from Devices.css (github.com/picturepan2/devices.css), MIT License, Copyright (c) Yan Zhu. Converted to em units so it scales with its container. */
+.dev-wrap{width:var(--pw,clamp(140px,19vw,240px));aspect-ratio:428/868;container-type:inline-size;position:relative;--dv:#76726F;--dv-dark:#5e5b59}
+@media (prefers-color-scheme:light){.dev-wrap{--dv:#e2e3e4;--dv-dark:#c8cacc}}
+.device{position:relative;font-size:calc(100cqw / 428);width:428em;height:868em}
+.device-frame{position:relative;z-index:1;box-sizing:border-box;background:#010101;border:1px solid var(--dv-dark);border-radius:68em;box-shadow:inset 0 0 4em 2em #fff,inset 0 0 0 6em var(--dv);width:428em;height:868em;padding:19em}
+.device-screen{position:relative;width:100%;height:100%;border-radius:11.45cqw;overflow:hidden;background:var(--screen);container-type:inline-size;font-size:16px}
+.device-stripe::after,.device-stripe::before{content:"";position:absolute;left:0;width:100%;height:7em;border:solid rgba(1,1,1,.25);border-width:0 7em;z-index:9;box-sizing:border-box}
+.device-stripe::after{top:85em}.device-stripe::before{bottom:85em}
+.device-header{position:absolute;z-index:2;top:29em;left:50%;margin-left:-60em;width:120em;height:35em;border-radius:20em;background:#010101}
+.device-sensors::after,.device-sensors::before{content:"";position:absolute;z-index:2}
+.device-sensors::after{top:30em;left:50%;margin-left:-60em;width:74em;height:33em;border-radius:17em;background:#010101}
+.device-sensors::before{top:42em;left:50%;margin-left:36em;width:9em;height:9em;border-radius:50%;background:radial-gradient(farthest-corner at 20% 20%,#6074BF 0,transparent 40%),radial-gradient(farthest-corner at 80% 80%,#513785 0,#24555E 20%,transparent 50%);box-shadow:0 0 1px 1px rgba(255,255,255,.05)}
+.device-btns{position:absolute;left:-2px;top:115em;width:3px;height:32em;border-radius:2px;background:var(--dv-dark)}
+.device-btns::after,.device-btns::before{content:"";position:absolute;left:0;width:3px;height:62em;border-radius:2px;background:var(--dv-dark)}
+.device-btns::after{top:60em}.device-btns::before{top:140em}
+.device-power{position:absolute;right:-2px;top:200em;width:3px;height:100em;border-radius:2px;background:var(--dv-dark)}
+.device-home::after,.device-home::before{content:"";position:absolute;width:6em;height:6em;border:solid rgba(1,1,1,.25);border-width:6em 0;z-index:9;box-sizing:border-box}
+.device-home::after{right:86em;top:0}.device-home::before{left:86em;bottom:0}
+
+.sb{height:17cqw;display:flex;align-items:center;padding:0 9cqw;font:600 5cqw/1 "SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace}
+.ttl{display:flex;justify-content:space-between;align-items:baseline;padding:2cqw 7cqw 4cqw;font:600 8cqw/1 "SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;letter-spacing:-.02em}
+.ttl small{font:500 4cqw/1 "SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;color:var(--muted)}
+.rows{list-style:none}
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:3cqw;align-items:center;padding:3.2cqw 7cqw;border-top:1px solid var(--line);font:400 4.3cqw/1.2 "SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace}
+.row b{font-weight:600;font-size:3.8cqw;color:var(--req)}
+.row b.WS{color:var(--ws)}
+.row span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row em{font-style:normal;color:var(--res);font-weight:500}
+.row em.bad{color:var(--err)}
+.row.in{animation:land .7s cubic-bezier(.2,.7,.2,1)}
+@keyframes land{from{opacity:0;transform:translateY(-8cqw);background:oklch(from var(--res) l c h/.25)}to{opacity:1;transform:none;background:transparent}}
+
+.net-in{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center}
+.wire{position:relative;height:120px;display:grid;align-content:center;gap:28px;padding:0 4px}
+.lane{position:relative;height:30px}
+.lane::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px dashed var(--line)}
+.lane .lbl{position:absolute;top:-18px;font-size:11px;color:var(--muted);font-family:"SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace}
+.lane.up .lbl{left:12px}.lane.down .lbl{right:12px;top:auto;bottom:-20px}
+.pk{position:absolute;left:0;top:50%;margin-top:-14px;height:28px;display:inline-flex;align-items:center;gap:8px;padding:0 10px;border-radius:99px;border:1px solid currentColor;background:var(--bg);font:500 12px/1 "SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;white-space:nowrap;will-change:transform}
+.pk.q{color:var(--req)}.pk.r{color:var(--res)}.pk.w{color:var(--ws)}.pk.bad{color:var(--err)}
+.pk .p{color:var(--ink);font-weight:400}
+@media (max-width:640px){.pk .p{display:none}.lane .lbl{display:none}.wire{gap:16px}}
+.srv{display:grid;gap:6px;width:clamp(44px,6vw,76px)}
+.srv i{height:clamp(16px,2vw,22px);border:1px solid var(--line);border-radius:4px;background:var(--panel);position:relative}
+.srv i::after{content:"";position:absolute;right:16%;top:50%;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;background:var(--line);transition:background .15s}
+.srv.hit i::after{background:var(--req)}
+.cap{font-size:11px;color:var(--muted);text-align:center;margin-top:8px;font-family:"SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace}
+
+.code{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:0}
+.code pre{overflow-x:auto;padding:16px 88px 16px 16px;font-size:13px;line-height:1.7}
+.copy{position:absolute;top:8px;right:8px;min-height:32px;padding:0 12px;border-radius:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:12px;font-weight:500;cursor:pointer}
+.copy:hover{border-color:var(--ink)}
+.copy.done{background:var(--res);border-color:var(--res);color:oklch(.16 .006 250)}
+.kw{color:var(--req)}.pp{color:var(--muted)}.st{color:var(--res)}.ty{color:var(--ws)}
+footer{border-top:1px solid var(--line)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.stat{color:var(--muted)}.stat b{color:var(--res);font-weight:500}
+
+  .used-icon { width:52px; height:52px; border-radius:12px; flex:none; display:block; object-fit:cover; border:1px solid var(--border); }
 </style>
 </head>
 <body>
@@ -70,17 +155,25 @@
       <p style="margin:0; color:var(--dim);">A fork of <a href="https://github.com/ProxymanApp/atlantis" target="_blank" rel="noopener">Proxyman / Atlantis</a>. Removes the Bonjour transport and desktop-app dependency, replaced by an on-device viewer.</p>
     </section>
 
-    <div style="margin:44px 0 0; max-width:720px; border:1px solid var(--border); background:var(--code-bg);">
-      <div style="display:flex; justify-content:space-between; padding:9px 16px; border-bottom:1px solid var(--border); color:var(--dim); font-size:11px; letter-spacing:.08em;">
-        <span>porthole: live capture</span>
-        <span>5 captured &middot; 0 dropped</span>
+    <figure class="console" style="margin:44px 0 0;">
+      <div class="bar">
+        <span class="state" id="state"><i aria-hidden="true"></i><span id="stateTxt">live capture</span><span class="stat" id="stat"> · 0 captured · 0 dropped</span></span>
+        <div class="tools" role="group" aria-label="Demo controls">
+          <button id="pause" type="button" aria-pressed="false">❚❚ pause</button>
+          <button id="clear" type="button">clear</button>
+          <button id="fire" type="button" class="pri">+ request</button>
+        </div>
       </div>
-      <pre style="margin:0; padding:16px 18px; overflow-x:auto; font-size:12.5px; line-height:1.85;"><span style="color:var(--accent);">GET </span>  api.acme.io/v1/user        <span style="color:var(--fg);">200</span>   142 ms
-<span style="color:var(--accent);">POST</span>  api.acme.io/v1/login       <span style="color:var(--fg);">201</span>   318 ms
-<span style="color:var(--accent);">GET </span>  cdn.acme.io/feed.json      <span style="color:var(--dim);">304</span>    11 ms
-<span style="color:var(--accent);">WS  </span>  socket.acme.io/live        <span style="color:var(--dim);">&uarr;&darr;</span>    open
-<span style="color:var(--accent);">GET </span>  cdn.acme.io/avatar.png     <span style="color:var(--fg);">500</span>   902 ms</pre>
-    </div>
+      <div class="net-in" role="img" aria-label="Requests leave an iPhone app and travel to a server; responses travel back, and each exchange appears as a row in the traffic list on the phone's screen.">
+        <div class="dev-wrap" aria-hidden="true"><div class="device">
+          <div class="device-frame"><div class="device-screen"><div class="sb">9:41</div><div class="ttl">Traffic<small id="count">0</small></div><ol class="rows" id="rows"></ol></div></div>
+          <div class="device-stripe"></div><div class="device-header"></div><div class="device-sensors"></div><div class="device-btns"></div><div class="device-power"></div><div class="device-home"></div>
+        </div></div>
+        <div class="wire" aria-hidden="true"><div class="lane up" id="up"><span class="lbl">request →</span></div><div class="lane down" id="down"><span class="lbl">← response</span></div></div>
+        <div aria-hidden="true"><div class="srv" id="srv"><i></i><i></i><i></i></div><p class="cap">server</p></div>
+      </div>
+      <figcaption>Paused, your app keeps talking but nothing is recorded. Porthole can pause, resume and clear capture the same way.</figcaption>
+    </figure>
 
     <section style="margin-top:96px;">
       <div style="display:flex; align-items:center; gap:14px; color:var(--dim); font-size:11px; letter-spacing:.2em; margin-bottom:24px;">
@@ -165,7 +258,7 @@
 dependencies: [
     .package(
         url: <span style="color:var(--accent);">"https://github.com/sohandotgit/Porthole.git"</span>,
-        branch: <span style="color:var(--accent);">"main"</span>
+        from: <span style="color:var(--accent);">"3.3.0"</span>
     )
 ]</pre>
     </section>
@@ -268,17 +361,26 @@ dependencies: [
       </ul>
     </section>
 
+    <section id="used" style="margin-top:96px;">
+      <div style="display:flex; align-items:center; gap:14px; color:var(--dim); font-size:11px; letter-spacing:.2em; margin-bottom:22px;">
+        <span style="color:var(--dimmer);">0x0240</span>
+        <span style="color:var(--accent);">USED BY</span>
+        <span style="flex:1; height:1px; background:var(--rule);"></span>
+      </div>
+      <img class="used-icon" src="redbus.jpg" alt="redBus" width="52" height="52">
+    </section>
+
     <div style="display:flex; flex-wrap:wrap; gap:48px 80px; margin-top:96px;">
       <section style="max-width:360px;">
         <div style="display:flex; align-items:center; gap:14px; color:var(--dim); font-size:11px; letter-spacing:.2em; margin-bottom:18px;">
-          <span style="color:var(--dimmer);">0x0240</span>
+          <span style="color:var(--dimmer);">0x0280</span>
           <span style="color:var(--accent);">REQUIRES</span>
         </div>
         <p style="margin:0; color:var(--dim);">iOS 16.0+ <span style="color:var(--accent);">&middot;</span> macOS 11+ <span style="color:var(--accent);">&middot;</span> Mac Catalyst 13.0+ <span style="color:var(--accent);">&middot;</span> tvOS 13.0+ <span style="color:var(--accent);">&middot;</span> watchOS 10.0+ <span style="color:var(--accent);">&middot;</span> Xcode 14+ <span style="color:var(--accent);">&middot;</span> Swift 5.0+. No third-party dependencies.</p>
       </section>
       <section style="max-width:420px;">
         <div style="display:flex; align-items:center; gap:14px; color:var(--dim); font-size:11px; letter-spacing:.2em; margin-bottom:18px;">
-          <span style="color:var(--dimmer);">0x0280</span>
+          <span style="color:var(--dimmer);">0x02c0</span>
           <span style="color:var(--accent);">NOTES</span>
         </div>
         <p style="margin:0; color:var(--dim);">Capture is memory-only: traffic lives in a bounded in-memory store for the process lifetime and is never written to disk or sent off-device. Debugging tools like Map Local, Breakpoint, and Scripting aren't supported; use a normal proxy for those. Keep <span style="color:var(--fg);">Atlantis.start()</span> behind <span style="color:var(--fg);">#if DEBUG</span> so no interception ships in release.</p>
@@ -295,5 +397,40 @@ dependencies: [
 
   </div>
 </div>
+<p class="sr" aria-live="polite" id="live"></p>
+<script>
+const E=(()=>{
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const D=[['GET','/v1/feed',200,'142ms'],['POST','/v1/events',201,'88ms'],['WS','/live ↑',null,'frame'],['GET','/v1/user/me',200,'61ms'],['GET','/img/cover.jpg',200,'210ms'],['PUT','/v1/cart',200,'97ms'],['GET','/v1/offers',404,'52ms'],['WS','/live ↓',null,'frame'],['GET','/v1/search',304,'34ms']];
+const $=id=>document.getElementById(id);
+const rows=$('rows'),up=$('up'),down=$('down'),srv=$('srv'),count=$('count');
+const S={recording:true,onRow:null};let n=0;
+const addRow=(d,fresh)=>{if(!S.recording)return;const li=document.createElement('li');li.className='row'+(fresh?' in':'');
+  li.innerHTML=`<b class="${d[0]}">${d[0]}</b><span>${d[1]}</span><em class="${d[2]>=400?'bad':''}">${d[2]===null?'↔':d[2]}</em>`;
+  rows.prepend(li);if(rows.children.length>12)rows.lastElementChild.remove();count.textContent=++n;const sx=document.getElementById('stat');if(sx)sx.textContent=` · ${n} captured · 0 dropped`;S.onRow&&S.onRow({d,el:li,n})};
+const clear=()=>{rows.innerHTML='';n=0;count.textContent=0;const sx=document.getElementById('stat');if(sx)sx.textContent=' · 0 captured · 0 dropped'};
+const pill=(cls,a,b)=>{const s=document.createElement('span');s.className='pk '+cls;s.innerHTML=`${a}<span class="p">${b}</span>`;return s};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const fly=(el,lane,dir,dur)=>{lane.append(el);const W=lane.clientWidth-el.offsetWidth;const f=dir>0?[0,W]:[W,0];
+  return el.animate([{transform:`translateX(${f[0]}px)`,opacity:0},{opacity:1,offset:.12},{opacity:1,offset:.88},{transform:`translateX(${f[1]}px)`,opacity:0}],{duration:dur,easing:'cubic-bezier(.45,0,.25,1)'}).finished.then(()=>el.remove())};
+const blink=()=>{srv.classList.add('hit');setTimeout(()=>srv.classList.remove('hit'),220)};
+const cycle=async d=>{
+  if(reduce){blink();addRow(d);return}
+  if(d[0]==='WS'){if(d[1].includes('↑')){await fly(pill('w','WS',' frame ↑'),up,1,1100);blink()}else{blink();await fly(pill('w','WS',' frame ↓'),down,-1,1000)}addRow(d,true);return}
+  await fly(pill('q',d[0],' '+d[1]),up,1,1100);blink();await sleep(parseInt(d[3])||100);
+  await fly(pill(d[2]>=400?'r bad':'r',String(d[2]),' '+d[3]),down,-1,950);addRow(d,true)};
+let visible=true,hold=0,i=6;new IntersectionObserver(e=>{visible=e[0].isIntersecting}).observe(up);
+const auto=async()=>{if(reduce)return;await sleep(400);while(true){if(!document.hidden&&visible&&Date.now()>hold)cycle(D[i++%D.length]);await sleep(1400)}};
+const staticPills=()=>{const a=pill('q','GET',' /v1/feed');a.style.left='35%';up.append(a);const b=pill('r','200',' 142ms');b.style.left='45%';down.append(b)};
+return {S,D,reduce,addRow,clear,cycle,auto,staticPills,hold:ms=>{hold=Date.now()+ms}};
+})();
+for(let k=5;k>=0;k--)E.addRow(E.D[k]);
+if(E.reduce)E.staticPills();else E.auto();
+const pauseB=document.getElementById('pause'),stEl=document.getElementById('state'),stT=document.getElementById('stateTxt'),say=t=>document.getElementById('live').textContent=t;
+pauseB.addEventListener('click',()=>{E.S.recording=!E.S.recording;const p=!E.S.recording;pauseB.setAttribute('aria-pressed',String(p));pauseB.textContent=p?'▶ resume':'❚❚ pause';stEl.classList.toggle('off',p);stT.textContent=p?'paused':'live capture';say(p?'Capture paused':'Capture resumed')});
+document.getElementById('clear').addEventListener('click',()=>{E.clear();say('Captured traffic cleared')});
+let f=0;const FIRE=[['GET','/v1/feed',200,'142ms'],['POST','/v1/events',201,'88ms'],['WS','/live ↑',null,'frame'],['GET','/v1/offers',404,'52ms']];
+document.getElementById('fire').addEventListener('click',()=>{E.hold(5000);E.cycle(FIRE[f++%FIRE.length])});
+</script>
 </body>
 </html>
