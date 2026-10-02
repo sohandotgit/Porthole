@@ -151,18 +151,16 @@ footer{border-top:1px solid var(--line)}
         <span style="color:var(--accent);">CAPTURE</span>
         <span style="flex:1; height:1px; background:var(--rule);"></span>
       </div>
-      <p style="margin:0 0 16px; font-size:15px; line-height:1.85;">Porthole hooks your app&rsquo;s URLSession traffic and records every request, response, and WebSocket frame in memory, then renders them in a native SwiftUI viewer you drop anywhere. Interception happens in-process, so there is nothing to configure on the network.</p>
-      <p style="margin:0; color:var(--dim);">A fork of <a href="https://github.com/ProxymanApp/atlantis" target="_blank" rel="noopener">Proxyman / Atlantis</a>. Removes the Bonjour transport and desktop-app dependency, replaced by an on-device viewer.</p>
+      <p style="margin:0 0 16px; font-size:15px; line-height:1.85;">Porthole records your app&rsquo;s URLSession requests, responses, and WebSocket frames in-process and shows them in a SwiftUI viewer.</p>
+      <p style="margin:0; color:var(--dim);">A fork of <a href="https://github.com/ProxymanApp/atlantis" target="_blank" rel="noopener">Proxyman / Atlantis</a>, with an on-device viewer instead of a desktop app.</p>
     </section>
 
     <figure class="console" style="margin:44px 0 0;">
       <div class="bar">
-        <span class="state" id="state"><i aria-hidden="true"></i><span id="stateTxt">live capture</span><span class="stat" id="stat"> · 0 captured · 0 dropped</span></span>
+        <span class="state" id="state"><i aria-hidden="true"></i><span id="stateTxt">live capture</span><span class="stat" id="stat"> · 0 captured</span></span>
         <div class="tools" role="group" aria-label="Demo controls">
           <button id="pause" type="button" aria-pressed="false">❚❚ pause</button>
-          <button id="clear" type="button">clear</button>
-          <button id="fire" type="button" class="pri">+ request</button>
-        </div>
+          <button id="clear" type="button">clear</button>        </div>
       </div>
       <div class="net-in" role="img" aria-label="Requests leave an iPhone app and travel to a server; responses travel back, and each exchange appears as a row in the traffic list on the phone's screen.">
         <div class="dev-wrap" aria-hidden="true"><div class="device">
@@ -172,7 +170,7 @@ footer{border-top:1px solid var(--line)}
         <div class="wire" aria-hidden="true"><div class="lane up" id="up"><span class="lbl">request →</span></div><div class="lane down" id="down"><span class="lbl">← response</span></div></div>
         <div aria-hidden="true"><div class="srv" id="srv"><i></i><i></i><i></i></div><p class="cap">server</p></div>
       </div>
-      <figcaption>Paused, your app keeps talking but nothing is recorded. Porthole can pause, resume and clear capture the same way.</figcaption>
+      <figcaption>Live demo. Pause or clear capture.</figcaption>
     </figure>
 
     <section style="margin-top:96px;">
@@ -181,7 +179,6 @@ footer{border-top:1px solid var(--line)}
         <span style="color:var(--accent);">THE PACKET</span>
         <span style="flex:1; height:1px; background:var(--rule);"></span>
       </div>
-      <p style="margin:0 0 24px; max-width:560px; color:var(--dim);">Every feature, laid out as header fields. Read it like a packet.</p>
       <pre style="margin:0 0 2px; color:var(--dimmer); font-size:11px; line-height:1.5; overflow-x:auto;"> 0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1</pre>
       <div class="packet-grid">
@@ -191,7 +188,7 @@ footer{border-top:1px solid var(--line)}
             <span style="color:var(--dimmer); font-size:10.5px;">bytes 0&ndash;1</span>
           </div>
           <div style="font-size:17px; color:var(--fg); margin-bottom:8px;">HTTP &middot; HTTPS</div>
-          <div style="color:var(--dim); font-size:12.5px; line-height:1.6;">Every URLSession request &amp; response, captured in-process.</div>
+          <div style="color:var(--dim); font-size:12.5px; line-height:1.6;">Every URLSession request &amp; response.</div>
         </div>
         <div class="packet-field">
           <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;">
@@ -199,7 +196,7 @@ footer{border-top:1px solid var(--line)}
             <span style="color:var(--dimmer); font-size:10.5px;">bytes 2&ndash;3</span>
           </div>
           <div style="font-size:17px; color:var(--fg); margin-bottom:8px;">WebSocket</div>
-          <div style="color:var(--dim); font-size:12.5px; line-height:1.6;">Frames in both directions: &uarr; send, &darr; receive.</div>
+          <div style="color:var(--dim); font-size:12.5px; line-height:1.6;">Frames sent &uarr; and received &darr;.</div>
         </div>
         <div class="packet-field">
           <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;">
@@ -207,7 +204,7 @@ footer{border-top:1px solid var(--line)}
             <span style="color:var(--dimmer); font-size:10.5px;">bytes 4&ndash;7</span>
           </div>
           <div style="font-size:17px; color:var(--fg); margin-bottom:8px;">SwiftUI Viewer</div>
-          <div style="color:var(--dim); font-size:12.5px; line-height:1.6;">Headers, bodies, timing &amp; status, inspected on-device.</div>
+          <div style="color:var(--dim); font-size:12.5px; line-height:1.6;">Headers, bodies, timing, status.</div>
         </div>
         <div class="packet-field">
           <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;">
@@ -215,7 +212,7 @@ footer{border-top:1px solid var(--line)}
             <span style="color:var(--dimmer); font-size:10.5px;">bytes 8&ndash;11</span>
           </div>
           <div style="font-size:17px; color:var(--fg); margin-bottom:8px;">cURL &middot; HAR</div>
-          <div style="color:var(--dim); font-size:12.5px; line-height:1.6;">Lift any entry out of the app and replay it elsewhere.</div>
+          <div style="color:var(--dim); font-size:12.5px; line-height:1.6;">Replay any entry elsewhere.</div>
         </div>
         <div class="packet-field">
           <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;">
@@ -223,7 +220,7 @@ footer{border-top:1px solid var(--line)}
             <span style="color:var(--dimmer); font-size:10.5px;">bytes 12&ndash;13</span>
           </div>
           <div style="font-size:17px; color:var(--fg); margin-bottom:8px;">pause / resume / clear</div>
-          <div style="color:var(--dim); font-size:12.5px; line-height:1.6;">Control capture at runtime from the store.</div>
+          <div style="color:var(--dim); font-size:12.5px; line-height:1.6;">Control capture at runtime.</div>
         </div>
         <div class="packet-field narrow">
           <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;">
@@ -253,7 +250,7 @@ footer{border-top:1px solid var(--line)}
         <span style="color:var(--accent);">INSTALL</span>
         <span style="flex:1; height:1px; background:var(--rule);"></span>
       </div>
-      <p style="margin:0 0 16px; color:var(--dim);">Add via Swift Package Manager: File &rsaquo; Add Package Dependencies&hellip;, or in <span style="color:var(--fg);">Package.swift</span>:</p>
+      <p style="margin:0 0 16px; color:var(--dim);">Add via Swift Package Manager:</p>
       <pre style="margin:0; background:var(--code-bg); border:1px solid var(--border); padding:16px 18px; overflow-x:auto; line-height:1.7; font-size:13px;"><span style="color:var(--dimmer);">// Package.swift</span>
 dependencies: [
     .package(
@@ -269,7 +266,7 @@ dependencies: [
         <span style="color:var(--accent);">START</span>
         <span style="flex:1; height:1px; background:var(--rule);"></span>
       </div>
-      <p style="margin:0 0 16px; color:var(--dim);">Begin capture once, early in the app lifecycle, guarded to debug builds.</p>
+      <p style="margin:0 0 16px; color:var(--dim);">Start capture once at launch, in debug builds.</p>
       <pre style="margin:0; background:var(--code-bg); border:1px solid var(--border); padding:16px 18px; overflow-x:auto; line-height:1.7; font-size:13px;"><span style="color:var(--accent);">import</span> SwiftUI
 <span style="color:var(--dimmer);">#if DEBUG</span>
 <span style="color:var(--accent);">import</span> Atlantis
@@ -295,7 +292,7 @@ dependencies: [
         <span style="color:var(--accent);">INSPECT</span>
         <span style="flex:1; height:1px; background:var(--rule);"></span>
       </div>
-      <p style="margin:0 0 16px; color:var(--dim);">Present the built-in viewer anywhere: a sheet, a tab, or a shake-gesture overlay.</p>
+      <p style="margin:0 0 16px; color:var(--dim);">Present the viewer anywhere.</p>
       <pre style="margin:0; background:var(--code-bg); border:1px solid var(--border); padding:16px 18px; overflow-x:auto; line-height:1.7; font-size:13px;"><span style="color:var(--accent);">import</span> Atlantis
 
 <span style="color:var(--accent);">struct</span> <span style="color:var(--fg);">DebugMenu</span>: View {
@@ -318,7 +315,6 @@ dependencies: [
         <span style="color:var(--accent);">CONTROLS</span>
         <span style="flex:1; height:1px; background:var(--rule);"></span>
       </div>
-      <p style="margin:0 0 18px; color:var(--dim);">The shared <span style="color:var(--fg);">TrafficStore</span> exposes runtime controls.</p>
       <div style="border:1px solid var(--border); overflow-x:auto;">
         <table style="border-collapse:collapse; width:100%; font-size:13px;">
           <thead>
@@ -332,17 +328,17 @@ dependencies: [
             <tr style="vertical-align:top;">
               <td style="padding:11px 16px; color:var(--accent); white-space:nowrap; border-top:1px solid var(--rule);">clear()</td>
               <td style="padding:11px 16px; color:var(--dim); white-space:nowrap; border-top:1px solid var(--rule);">func</td>
-              <td style="padding:11px 16px; border-top:1px solid var(--rule);">Empties the ring buffer and removes all recorded traffic.</td>
+              <td style="padding:11px 16px; border-top:1px solid var(--rule);">Remove all recorded traffic.</td>
             </tr>
             <tr style="vertical-align:top;">
               <td style="padding:11px 16px; color:var(--accent); white-space:nowrap; border-top:1px solid var(--rule);">isPaused</td>
               <td style="padding:11px 16px; color:var(--dim); white-space:nowrap; border-top:1px solid var(--rule);">Bool</td>
-              <td style="padding:11px 16px; border-top:1px solid var(--rule);">When true, new requests are ignored until resumed.</td>
+              <td style="padding:11px 16px; border-top:1px solid var(--rule);">Ignore new requests while true.</td>
             </tr>
             <tr style="vertical-align:top;">
               <td style="padding:11px 16px; color:var(--accent); white-space:nowrap; border-top:1px solid var(--rule);">capacity</td>
               <td style="padding:11px 16px; color:var(--dim); white-space:nowrap; border-top:1px solid var(--rule);">Int</td>
-              <td style="padding:11px 16px; border-top:1px solid var(--rule);">Maximum entries retained; oldest are evicted first. Default 500.</td>
+              <td style="padding:11px 16px; border-top:1px solid var(--rule);">Max entries kept. Default 500.</td>
             </tr>
           </tbody>
         </table>
@@ -356,8 +352,8 @@ dependencies: [
         <span style="flex:1; height:1px; background:var(--rule);"></span>
       </div>
       <ul style="margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:12px;">
-        <li style="display:flex; gap:12px;"><span style="color:var(--accent); flex:none;">&raquo;</span><span><span style="color:var(--fg);">cURL</span>: copy a single request as a runnable <span style="color:var(--fg);">curl</span> command, headers and body included.</span></li>
-        <li style="display:flex; gap:12px;"><span style="color:var(--accent); flex:none;">&raquo;</span><span><span style="color:var(--fg);">HAR</span>: export the whole session as an HTTP Archive for Proxyman, Charles, or DevTools.</span></li>
+        <li style="display:flex; gap:12px;"><span style="color:var(--accent); flex:none;">&raquo;</span><span><span style="color:var(--fg);">cURL</span>: copy a request as a <span style="color:var(--fg);">curl</span> command.</span></li>
+        <li style="display:flex; gap:12px;"><span style="color:var(--accent); flex:none;">&raquo;</span><span><span style="color:var(--fg);">HAR</span>: export the session for Proxyman, Charles, or DevTools.</span></li>
       </ul>
     </section>
 
@@ -376,14 +372,14 @@ dependencies: [
           <span style="color:var(--dimmer);">0x0280</span>
           <span style="color:var(--accent);">REQUIRES</span>
         </div>
-        <p style="margin:0; color:var(--dim);">iOS 16.0+ <span style="color:var(--accent);">&middot;</span> macOS 11+ <span style="color:var(--accent);">&middot;</span> Mac Catalyst 13.0+ <span style="color:var(--accent);">&middot;</span> tvOS 13.0+ <span style="color:var(--accent);">&middot;</span> watchOS 10.0+ <span style="color:var(--accent);">&middot;</span> Xcode 14+ <span style="color:var(--accent);">&middot;</span> Swift 5.0+. No third-party dependencies.</p>
+        <p style="margin:0; color:var(--dim);">iOS 16+ <span style="color:var(--accent);">&middot;</span> macOS 11+ <span style="color:var(--accent);">&middot;</span> Mac Catalyst 13+ <span style="color:var(--accent);">&middot;</span> tvOS 13+ <span style="color:var(--accent);">&middot;</span> watchOS 10+ <span style="color:var(--accent);">&middot;</span> Xcode 14+. No dependencies.</p>
       </section>
       <section style="max-width:420px;">
         <div style="display:flex; align-items:center; gap:14px; color:var(--dim); font-size:11px; letter-spacing:.2em; margin-bottom:18px;">
           <span style="color:var(--dimmer);">0x02c0</span>
           <span style="color:var(--accent);">NOTES</span>
         </div>
-        <p style="margin:0; color:var(--dim);">Capture is memory-only: traffic lives in a bounded in-memory store for the process lifetime and is never written to disk or sent off-device. Debugging tools like Map Local, Breakpoint, and Scripting aren't supported; use a normal proxy for those. Keep <span style="color:var(--fg);">Atlantis.start()</span> behind <span style="color:var(--fg);">#if DEBUG</span> so no interception ships in release.</p>
+        <p style="margin:0; color:var(--dim);">Traffic stays in memory, never on disk or off-device. No Map Local, Breakpoint, or Scripting. Keep <span style="color:var(--fg);">Atlantis.start()</span> behind <span style="color:var(--fg);">#if DEBUG</span>.</p>
       </section>
     </div>
 
@@ -407,8 +403,8 @@ const rows=$('rows'),up=$('up'),down=$('down'),srv=$('srv'),count=$('count');
 const S={recording:true,onRow:null};let n=0;
 const addRow=(d,fresh)=>{if(!S.recording)return;const li=document.createElement('li');li.className='row'+(fresh?' in':'');
   li.innerHTML=`<b class="${d[0]}">${d[0]}</b><span>${d[1]}</span><em class="${d[2]>=400?'bad':''}">${d[2]===null?'↔':d[2]}</em>`;
-  rows.prepend(li);if(rows.children.length>12)rows.lastElementChild.remove();count.textContent=++n;const sx=document.getElementById('stat');if(sx)sx.textContent=` · ${n} captured · 0 dropped`;S.onRow&&S.onRow({d,el:li,n})};
-const clear=()=>{rows.innerHTML='';n=0;count.textContent=0;const sx=document.getElementById('stat');if(sx)sx.textContent=' · 0 captured · 0 dropped'};
+  rows.prepend(li);if(rows.children.length>12)rows.lastElementChild.remove();count.textContent=++n;const sx=document.getElementById('stat');if(sx)sx.textContent=` · ${n} captured`;S.onRow&&S.onRow({d,el:li,n})};
+const clear=()=>{rows.innerHTML='';n=0;count.textContent=0;const sx=document.getElementById('stat');if(sx)sx.textContent=' · 0 captured'};
 const pill=(cls,a,b)=>{const s=document.createElement('span');s.className='pk '+cls;s.innerHTML=`${a}<span class="p">${b}</span>`;return s};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const fly=(el,lane,dir,dur)=>{lane.append(el);const W=lane.clientWidth-el.offsetWidth;const f=dir>0?[0,W]:[W,0];
@@ -429,8 +425,6 @@ if(E.reduce)E.staticPills();else E.auto();
 const pauseB=document.getElementById('pause'),stEl=document.getElementById('state'),stT=document.getElementById('stateTxt'),say=t=>document.getElementById('live').textContent=t;
 pauseB.addEventListener('click',()=>{E.S.recording=!E.S.recording;const p=!E.S.recording;pauseB.setAttribute('aria-pressed',String(p));pauseB.textContent=p?'▶ resume':'❚❚ pause';stEl.classList.toggle('off',p);stT.textContent=p?'paused':'live capture';say(p?'Capture paused':'Capture resumed')});
 document.getElementById('clear').addEventListener('click',()=>{E.clear();say('Captured traffic cleared')});
-let f=0;const FIRE=[['GET','/v1/feed',200,'142ms'],['POST','/v1/events',201,'88ms'],['WS','/live ↑',null,'frame'],['GET','/v1/offers',404,'52ms']];
-document.getElementById('fire').addEventListener('click',()=>{E.hold(5000);E.cycle(FIRE[f++%FIRE.length])});
 </script>
 </body>
 </html>
